@@ -2,7 +2,8 @@ name: Build LocalBridge Windows EXE
 
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -10,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      JAVA_VERSION: "21"
+      JAVA_VERSION: "25"
 
     steps:
       - name: Checkout
@@ -23,9 +24,9 @@ jobs:
           distribution: "graalvm"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install native-image
-        shell: bash
-        run: gu install native-image
+      - name: Verify native-image is available
+        shell: pwsh
+        run: native-image --version
 
       - name: Verify static assets exist
         shell: pwsh
@@ -42,6 +43,12 @@ jobs:
         shell: bash
         run: ./mvnw.cmd -DskipTests -Pnative clean native:compile
 
+      - name: Write version file
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          Set-Content -Path "${{ github.workspace }}\VERSION.txt" -Value $version -NoNewline
+
       - name: Create launcher script
         shell: pwsh
         run: |
@@ -50,15 +57,37 @@ jobs:
           setlocal
 
           set "EXE=%~dp0localbridge.exe"
+          set "VERFILE=%~dp0VERSION.txt"
           set "URL=http://localhost:8080"
+          set "REPO=YOUR_USERNAME/YOUR_REPO"
 
           if not exist "%EXE%" (
-              echo ERROR: localbridge.exe not found.
+              echo ERROR: localbridge.exe was not found next to this launcher.
+              echo Expected file: %EXE%
+              echo Put the generated executable in the same folder as this script and try again.
               pause
               exit /b 1
           )
 
-          echo Starting LocalBridge...
+          set "CURRENT_VERSION=unknown"
+          if exist "%VERFILE%" (
+              set /p CURRENT_VERSION=<"%VERFILE%"
+          )
+
+          powershell -NoProfile -Command ^
+              "try { " ^
+              "  $latest = (Invoke-RestMethod -Uri 'https://api.github.com/repos/%REPO%/releases/latest' -TimeoutSec 3).tag_name; " ^
+              "  if ($latest -and ($latest -ne '%CURRENT_VERSION%')) { " ^
+              "    Write-Host ''; " ^
+              "    Write-Host '=====================================================' -ForegroundColor Yellow; " ^
+              "    Write-Host \"  A new version is available: $latest (you have %CURRENT_VERSION%)\" -ForegroundColor Yellow; " ^
+              "    Write-Host \"  Download: https://github.com/%REPO%/releases/latest\" -ForegroundColor Yellow; " ^
+              "    Write-Host '=====================================================' -ForegroundColor Yellow; " ^
+              "    Write-Host ''; " ^
+              "  } " ^
+              "} catch { }"
+
+          echo Starting LocalBridge (%CURRENT_VERSION%)...
           start "" "%EXE%" --server.port=8080
 
           echo Waiting for app to start on %URL%...
@@ -87,7 +116,7 @@ jobs:
           }
 
           Copy-Item $exe.FullName "${{ github.workspace }}\localbridge.exe"
-          Compress-Archive -Path "${{ github.workspace }}\localbridge.exe", "${{ github.workspace }}\start-localbridge.cmd" -DestinationPath $zipOut -Force
+          Compress-Archive -Path "${{ github.workspace }}\localbridge.exe", "${{ github.workspace }}\start-localbridge.cmd", "${{ github.workspace }}\VERSION.txt" -DestinationPath $zipOut -Force
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
@@ -95,3 +124,10 @@ jobs:
           name: localbridge-windows-bundle
           path: localbridge-windows-bundle.zip
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: localbridge-windows-bundle.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
