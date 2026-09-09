@@ -16,10 +16,10 @@ public class AuthenticationService implements AuthenticateRequestUseCase {
 
     @Override
     public SecurityContext evaluateRequest(String remoteAddress, String hostHeader, String tokenHeader) {
-        // 1. Check for Host PC Loopback
+        // Only trust the socket peer address. Host is client-controlled.
         boolean isLoopback = "127.0.0.1".equals(remoteAddress) ||
                 "0:0:0:0:0:0:0:1".equals(remoteAddress) ||
-                (hostHeader != null && hostHeader.startsWith("localhost"));
+                "::1".equals(remoteAddress);
 
         if (isLoopback) {
             return SecurityContext.trustedLocal();

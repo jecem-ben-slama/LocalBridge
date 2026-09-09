@@ -37,6 +37,10 @@ public class FileSystemAdapter implements FileStoragePort {
             throw new PathTraversalException("Access denied: Path traversal attempt detected.");
         }
 
+        if ("LocalBridge".equals(subPath) && !Files.exists(targetPath)) {
+            Files.createDirectories(targetPath);
+        }
+
         if (!Files.exists(targetPath) || !Files.isDirectory(targetPath)) {
             throw new IllegalArgumentException("Directory does not exist or is not a folder.");
         }
@@ -46,10 +50,13 @@ public class FileSystemAdapter implements FileStoragePort {
             stream.forEach(path -> {
                 try {
                     BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                    String name = path.getFileName().toString();
+                    if (isHiddenOrFilesEntry(name))
+                        return;
                     String relativePath = rootDir.relativize(path).toString().replace("\\", "/");
 
                     nodes.add(new FileNode(
-                            path.getFileName().toString(),
+                            name,
                             relativePath,
                             attrs.isDirectory(),
                             attrs.isDirectory() ? 0 : attrs.size(),
@@ -66,10 +73,10 @@ public class FileSystemAdapter implements FileStoragePort {
     @Override
     public void saveFile(String subPath, MultipartFile file) throws IOException {
         Path targetDir = (subPath == null || subPath.trim().isEmpty() || subPath.equals("/"))
-                ? rootDir
+                ? rootDir.resolve("LocalBridge")
                 : rootDir.resolve(subPath).normalize();
 
-        if (!targetDir.startsWith(rootDir)) {
+        if (!targetDir.startsWith(rootDir) || !isWithinRealRoot(targetDir, true)) {
             throw new PathTraversalException("Access denied: Path traversal attempt detected.");
         }
 
@@ -82,11 +89,33 @@ public class FileSystemAdapter implements FileStoragePort {
             throw new IllegalArgumentException("Invalid file name.");
         }
 
-        Path destinationFile = targetDir.resolve(Paths.get(originalFilename)).normalize();
-        if (!destinationFile.startsWith(rootDir)) {
+        String safeName = Paths.get(originalFilename).getFileName().toString();
+        if (isHiddenOrFilesEntry(safeName)) {
+            throw new IllegalArgumentException("Hidden files are not allowed.");
+        }
+        Path destinationFile = targetDir.resolve(safeName).normalize();
+        if (!destinationFile.startsWith(rootDir) || !isWithinRealRoot(destinationFile, true)) {
             throw new PathTraversalException("Access denied: Invalid target file path.");
         }
 
-        Files.copy(file.getInputStream(), destinationFile, StandardCopyOption.REPLACE_EXISTING);
+        try (var input = file.getInputStream()) {
+            Files.copy(input, destinationFile, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private boolean isWithinRealRoot(Path path, boolean allowMissingLeaf) throws IOException {
+        Path realRoot = rootDir.toRealPath();
+        Path realPath;
+        if (allowMissingLeaf && !Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+            Path parent = path.getParent();
+            realPath = parent.toRealPath().resolve(path.getFileName()).normalize();
+        } else {
+            realPath = path.toRealPath();
+        }
+        return realPath.startsWith(realRoot);
+    }
+
+    private boolean isHiddenOrFilesEntry(String name) {
+        return name.startsWith(".") || name.equalsIgnoreCase(".files");
     }
 }

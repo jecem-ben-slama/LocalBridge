@@ -1,0 +1,97 @@
+name: Build LocalBridge Windows EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-native-windows:
+    runs-on: windows-latest
+
+    env:
+      JAVA_VERSION: "21"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: "graalvm"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install native-image
+        shell: bash
+        run: gu install native-image
+
+      - name: Verify static assets exist
+        shell: pwsh
+        run: |
+          $static = Join-Path "${{ github.workspace }}" "localbridge\src\main\resources\static"
+          if (!(Test-Path $static)) {
+            Write-Error "Static folder missing: $static"
+            exit 1
+          }
+          Get-ChildItem $static | Select-Object Name
+
+      - name: Build Spring Boot native executable
+        working-directory: ./localbridge
+        shell: bash
+        run: ./mvnw.cmd -DskipTests -Pnative clean native:compile
+
+      - name: Create launcher script
+        shell: pwsh
+        run: |
+          @'
+          @echo off
+          setlocal
+
+          set "EXE=%~dp0localbridge.exe"
+          set "URL=http://localhost:8080"
+
+          if not exist "%EXE%" (
+              echo ERROR: localbridge.exe not found.
+              pause
+              exit /b 1
+          )
+
+          echo Starting LocalBridge...
+          start "" "%EXE%" --server.port=8080
+
+          echo Waiting for app to start on %URL%...
+          for /L %%I in (1,1,120) do (
+              powershell -NoProfile -Command "$c = Test-NetConnection -ComputerName localhost -Port 8080 -WarningAction SilentlyContinue; if ($c.TcpTestSucceeded) { exit 0 } else { exit 1 }" >nul 2>&1
+              if not errorlevel 1 goto ready
+              ping -n 2 127.0.0.1 >nul
+          )
+
+          :ready
+          echo Opening browser...
+          start "" "%URL%"
+          exit /b 0
+          '@ | Set-Content -Path "${{ github.workspace }}\start-localbridge.cmd"
+
+      - name: Package Windows bundle
+        shell: pwsh
+        run: |
+          $target = Join-Path "${{ github.workspace }}" "localbridge\target"
+          $zipOut = Join-Path "${{ github.workspace }}" "localbridge-windows-bundle.zip"
+
+          $exe = Get-ChildItem $target -Filter *.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "No .exe found in localbridge/target"
+            exit 1
+          }
+
+          Copy-Item $exe.FullName "${{ github.workspace }}\localbridge.exe"
+          Compress-Archive -Path "${{ github.workspace }}\localbridge.exe", "${{ github.workspace }}\start-localbridge.cmd" -DestinationPath $zipOut -Force
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: localbridge-windows-bundle
+          path: localbridge-windows-bundle.zip
+          if-no-files-found: error

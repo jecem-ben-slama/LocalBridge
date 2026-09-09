@@ -10,4 +10,6 @@ public class LocalbridgeApplication {
 		SpringApplication.run(LocalbridgeApplication.class, args);
 	}
 
+	
 }
+	

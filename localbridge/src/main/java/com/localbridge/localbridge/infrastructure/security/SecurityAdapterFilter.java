@@ -25,23 +25,46 @@ public class SecurityAdapterFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // Bypass static assets and auth verification endpoints
-        if (path.startsWith("/api/auth/") || path.startsWith("/index.html") || path.equals("/") || path.endsWith(".js")
+        // Bypass only the endpoint needed to establish a session and static assets.
+        if (path.equals("/api/auth/verify") || path.equals("/ws/phone") || path.startsWith("/index.html")
+                || path.equals("/") || path.endsWith(".js")
                 || path.endsWith(".css")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract raw network attributes (Infrastructure concern)
+        // Extract raw network attributes
         String remoteAddr = request.getRemoteAddr();
         String hostHeader = request.getHeader("Host");
-        String tokenHeader = request.getHeader("X-LocalBridge-Token");
 
-        // Delegate verification to the Inbound Port (Core business logic)
+        // Support multiple token header keys for compatibility
+        String tokenHeader = request.getHeader("X-LocalBridge-Token");
+        if (tokenHeader == null || tokenHeader.isBlank()) {
+            tokenHeader = request.getHeader("X-Auth-Token");
+        }
+        if (tokenHeader == null || tokenHeader.isBlank()) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                tokenHeader = authHeader.substring(7);
+            }
+        }
+        if (tokenHeader == null || tokenHeader.isBlank()) {
+            tokenHeader = request.getParameter("token");
+        }
+        if (tokenHeader == null || tokenHeader.isBlank()) {
+            tokenHeader = request.getParameter("pairing_token");
+        }
+        if (tokenHeader == null || tokenHeader.isBlank()) {
+            tokenHeader = request.getParameter("pairing_code");
+        }
+        if (tokenHeader == null || tokenHeader.isBlank()) {
+            tokenHeader = request.getParameter("code");
+        }
+
+        // Delegate verification to the Inbound Port
         SecurityContext context = authenticateUseCase.evaluateRequest(remoteAddr, hostHeader, tokenHeader);
 
         if (context.isAuthenticated()) {
-            // Attach security context or attributes if needed downstream
             request.setAttribute("securityContext", context);
             filterChain.doFilter(request, response);
         } else {
