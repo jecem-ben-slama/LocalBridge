@@ -1,0 +1,6 @@
+<!-- Show Login if unauthenticated, otherwise load the dashboard layout -->
+<app-login *ngIf="!authService.isAuthenticated(); else dashboard"></app-login>
+
+<ng-template #dashboard>
+  <app-dashboard-layout></app-dashboard-layout>
+</ng-template>

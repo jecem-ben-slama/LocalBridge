@@ -1,0 +1,74 @@
+<div class="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
+    <!-- Dedicated Sidebar Component -->
+    <app-sidebar [currentTab]="currentTab" (tabChange)="currentTab = $event" (onLogout)="logout()">
+    </app-sidebar>
+
+    <!-- Main Content View Area -->
+    <main class="flex-1 overflow-y-auto bg-slate-950">
+        <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur px-4 py-3 md:px-8">
+            <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+                <nav class="flex items-center gap-2" aria-label="Quick navigation">
+                    <button (click)="currentTab = 'files'" [class.bg-blue-600]="currentTab === 'files'"
+                        class="px-3 py-2 rounded-lg text-xs text-slate-200 hover:bg-slate-800">Files</button>
+                    <button (click)="currentTab = 'connection'" [class.bg-blue-600]="currentTab === 'connection'"
+                        class="px-3 py-2 rounded-lg text-xs text-slate-200 hover:bg-slate-800">Connection</button>
+                </nav>
+                <div class="flex items-center gap-3 text-[11px] text-slate-400">
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full"
+                            [class.bg-emerald-400]="backendLive" [class.bg-red-400]="!backendLive"></span> PC
+                        session</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full"
+                            [class.bg-emerald-400]="phoneServerLive" [class.bg-slate-600]="!phoneServerLive"></span>
+                        Phone</span>
+                    <span class="flex items-center gap-1.5" [class.text-emerald-400]="phoneConnected"
+                        [class.text-slate-500]="!phoneConnected">
+                        <span>{{ phoneConnected ? '✓' : '×' }}</span> Phone connected</span>
+                    <button (click)="refreshStatus()" [disabled]="phoneServerChecking"
+                        class="p-1.5 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                        title="Refresh connection status" aria-label="Refresh connection status">↻</button>
+                </div>
+            </div>
+        </header>
+        <div class="p-4 md:p-8">
+            <div class="max-w-5xl mx-auto">
+                <ng-container *ngIf="fileService.transferState$ | async as transfer">
+                    <div *ngIf="transfer.active"
+                        class="mb-5 rounded-xl border border-blue-500/30 bg-slate-900 p-4 shadow-lg">
+                        <div class="flex items-center justify-between text-sm text-slate-200">
+                            <span>{{ transfer.kind === 'upload' ? 'Uploading' : 'Downloading' }} {{ transfer.fileName
+                                }}</span>
+                            <span class="text-blue-400">{{ transfer.progress }}%</span>
+                        </div>
+                        <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-950">
+                            <div class="h-2 rounded-full bg-blue-500 transition-all duration-300"
+                                [style.width.%]="transfer.progress"></div>
+                        </div>
+                    </div>
+                </ng-container>
+
+                <!-- Files Tab -->
+                <!-- Files Tab -->
+                <div *ngIf="currentTab === 'files'">
+                    <app-file-explorer></app-file-explorer>
+                </div>
+
+                <div *ngIf="currentTab === 'recent'">
+                    <app-recent-shared></app-recent-shared>
+                </div>
+
+                <div *ngIf="currentTab === 'connection'">
+                    <app-connection></app-connection>
+                </div>
+
+                <!-- Clipboard Tab -->
+                <div *ngIf="currentTab === 'clipboard'">
+                    <h1 class="text-2xl font-bold mb-2">Universal Clipboard Sync</h1>
+                    <p class="text-slate-400 text-sm mb-6">
+                        Real-time clipboard broadcasting over local WebSocket channels.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</div>

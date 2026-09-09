@@ -1,0 +1,55 @@
+<section class="space-y-5">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Connection</h1>
+            <p class="text-sm text-slate-400 mt-1">Live status of the PC session, phone connection, and phone server.
+            </p>
+        </div>
+        <button (click)="checkNow()" [disabled]="checking"
+            class="px-3 py-2 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 disabled:opacity-50 text-sm">
+            {{ checking ? 'Checking...' : 'Check now' }}
+        </button>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-4">
+        <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Overall</p>
+            <p class="mt-3 text-lg font-semibold" [class.text-emerald-400]="backendLive && phoneServerLive"
+                [class.text-red-400]="!(backendLive && phoneServerLive)">
+                {{ backendLive && phoneServerLive ? 'Live' : 'Offline' }}
+            </p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Phone connection</p>
+            <p class="mt-3 text-lg font-semibold" [class.text-emerald-400]="phoneConnected"
+                [class.text-red-400]="!phoneConnected">
+                {{ phoneConnected ? 'Connected ✓' : 'Disconnected' }}
+            </p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+            <p class="text-xs uppercase tracking-wide text-slate-500">PC session</p>
+            <p class="mt-3 text-lg font-semibold" [class.text-emerald-400]="backendLive"
+                [class.text-red-400]="!backendLive">
+                {{ backendLive ? 'Reachable' : 'Unavailable' }}
+            </p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+            <p class="text-xs uppercase tracking-wide text-slate-500">Phone server</p>
+            <p class="mt-3 text-lg font-semibold" [class.text-emerald-400]="phoneServerLive"
+                [class.text-slate-400]="!phoneServerLive">
+                {{ phoneServerLive ? 'Reachable' : 'Stopped' }}
+            </p>
+        </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+        <h2 class="text-lg font-semibold text-white mb-3">Pair a phone</h2>
+        <app-qr-pairing></app-qr-pairing>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900 p-5 text-sm text-slate-300">
+        <p *ngIf="phoneServerUrl">Phone endpoint: <span class="font-mono text-blue-400">{{ phoneServerUrl }}</span></p>
+        <p *ngIf="!phoneServerUrl" class="text-slate-500">No phone server is registered.</p>
+        <p *ngIf="lastChecked" class="mt-2 text-slate-500">Last checked: {{ lastChecked | date:'medium' }}</p>
+    </div>
+</section>
