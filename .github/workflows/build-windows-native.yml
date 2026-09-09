@@ -59,7 +59,7 @@ jobs:
           set "EXE=%~dp0localbridge.exe"
           set "VERFILE=%~dp0VERSION.txt"
           set "URL=http://localhost:8080"
-          set "REPO=YOUR_USERNAME/YOUR_REPO"
+          set "REPO=jecem-ben-slama/LocalBridge"
 
           if not exist "%EXE%" (
               echo ERROR: localbridge.exe was not found next to this launcher.
