@@ -1,0 +1,14 @@
+<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+        <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-bridge-primary">Connections</p>
+        <h1 class="mt-2 text-2xl font-bold text-bridge-text">Connection status</h1>
+        <p class="mt-1 text-sm text-bridge-text-secondary">
+            Live status of the PC session, phone connection, and phone server.
+        </p>
+    </div>
+
+    <button (click)="checkNow.emit()" [disabled]="checking"
+        class="inline-flex items-center justify-center rounded-full border border-bridge-border bg-bridge-card px-3 py-2 text-xs font-medium text-bridge-text-secondary transition hover:border-bridge-primary/50 hover:bg-bridge-elevated hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50">
+        {{ checking ? 'Checking...' : 'Check now' }}
+    </button>
+</div>

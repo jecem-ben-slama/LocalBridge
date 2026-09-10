@@ -3,10 +3,13 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import * as QRCode from 'qrcode';
 
+import { QrPairingCardComponent } from './components/qr-pairing-card/qr-pairing-card.component';
+import { QrPairingStepsComponent } from './components/qr-pairing-steps/qr-pairing-steps.component';
+
 @Component({
   selector: 'app-qr-pairing',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, QrPairingCardComponent, QrPairingStepsComponent],
   templateUrl: './qr-pairing.component.html',
 })
 export class QrPairingComponent {

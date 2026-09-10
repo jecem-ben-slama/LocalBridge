@@ -1,0 +1,28 @@
+<div
+    class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 transition hover:border-bridge-border-strong hover:bg-bridge-elevated/80">
+    <div class="flex items-start justify-between gap-3">
+        <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-bridge-muted-dark">{{ label }}</p>
+            <p class="mt-3 text-base font-semibold text-bridge-text" [ngClass]="{
+        'text-bridge-success': tone === 'success',
+        'text-bridge-error': tone === 'danger',
+        'text-bridge-warning': tone === 'warning',
+        'text-bridge-text': tone === 'neutral'
+      }">
+                {{ value }}
+            </p>
+        </div>
+
+        <span *ngIf="badge" class="rounded-full border px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em]"
+            [ngClass]="{
+        'border-bridge-success/30 bg-bridge-success-soft text-bridge-success': tone === 'success',
+        'border-bridge-error/30 bg-bridge-error-soft text-bridge-error': tone === 'danger',
+        'border-bridge-warning/30 bg-bridge-warning-soft text-bridge-warning': tone === 'warning',
+        'border-bridge-border bg-bridge-dark text-bridge-text-secondary': tone === 'neutral'
+      }">
+            {{ badge }}
+        </span>
+    </div>
+
+    <p *ngIf="detail" class="mt-2 text-xs text-bridge-text-secondary">{{ detail }}</p>
+</div>

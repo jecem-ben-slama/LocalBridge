@@ -1,0 +1,86 @@
+<div
+    class="flex flex-col gap-4 rounded-2xl border border-bridge-border bg-bridge-card/80 p-5 shadow-sm shadow-bridge-darkest/20">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-3">
+            <button *ngIf="pathHistoryLength > 0" (click)="goBack.emit()"
+                class="inline-flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-3.5 py-2 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text">
+                <span>←</span>
+                <span>Back</span>
+            </button>
+
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-bridge-text">{{ title || (source === 'pc' ? 'PC Files'
+                    :
+                    'Phone Files') }}</h1>
+                <p class="mt-1 text-[12px] font-mono text-bridge-text-secondary">
+                    Path: <span class="text-bridge-accent">{{ currentPath || '/' }}</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+            <div class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-dark p-1">
+                <button (click)="selectSource.emit('pc')" [class.bg-bridge-card]="source === 'pc'"
+                    class="rounded-full px-4 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                    PC
+                </button>
+                <button (click)="selectSource.emit('phone')" [class.bg-bridge-card]="source === 'phone'"
+                    class="rounded-full px-4 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                    Phone
+                </button>
+            </div>
+
+            <button *ngIf="source === 'pc'" (click)="uploadToPc.emit()" [disabled]="transferBusy || isUploading"
+                class="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                <span>📤</span>
+                <span>{{ isUploading ? 'Uploading...' : 'Upload to PC' }}</span>
+            </button>
+
+            <button *ngIf="source === 'phone'" (click)="uploadToPhone.emit()" [disabled]="transferBusy || isUploading"
+                class="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                <span>📱</span>
+                <span>{{ isUploading ? 'Uploading...' : 'Upload here' }}</span>
+            </button>
+
+            <button (click)="refresh.emit()" [disabled]="isLoading"
+                class="inline-flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-4 py-2.5 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50">
+                <span>↻</span>
+                <span>Refresh</span>
+            </button>
+
+            <div class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-dark p-1">
+                <button (click)="setViewMode.emit('list')" [class.bg-bridge-card]="viewMode === 'list'"
+                    class="rounded-full px-3 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                    List
+                </button>
+                <button (click)="setViewMode.emit('grid')" [class.bg-bridge-card]="viewMode === 'grid'"
+                    class="rounded-full px-3 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                    Grid
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <label class="block w-full md:max-w-md">
+            <span class="sr-only">Search files</span>
+            <input type="text" [value]="searchTerm" (input)="searchTermChange.emit($any($event.target).value)"
+                placeholder="Search files..."
+                class="w-full rounded-full border border-bridge-border bg-bridge-dark px-3 py-2.5 text-sm text-bridge-text placeholder:text-bridge-muted-dark focus:border-bridge-primary/50 focus:outline-none" />
+        </label>
+
+        <label class="flex items-center gap-2 text-sm text-bridge-text-secondary">
+            <span>Type</span>
+            <select [value]="fileTypeFilter" (change)="fileTypeFilterChange.emit($any($event.target).value)"
+                class="rounded-full border border-bridge-border bg-bridge-dark px-3 py-2 text-sm text-bridge-text focus:border-bridge-primary/50 focus:outline-none">
+                <option value="all">All</option>
+                <option value="image">Images</option>
+                <option value="video">Videos</option>
+                <option value="audio">Audio</option>
+                <option value="document">Documents</option>
+                <option value="folder">Folders</option>
+                <option value="file">Files</option>
+            </select>
+        </label>
+    </div>
+</div>

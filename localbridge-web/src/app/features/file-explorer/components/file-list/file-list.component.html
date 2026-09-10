@@ -1,0 +1,31 @@
+<div class="max-h-[550px] overflow-y-auto divide-y divide-bridge-border/60">
+    <div *ngFor="let file of files" (click)="openNode.emit(file)"
+        class="flex cursor-pointer items-center justify-between bg-bridge-card/30 p-4 transition-colors hover:bg-bridge-elevated/50">
+        <div class="flex min-w-0 items-center gap-3.5">
+            <div
+                class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-bridge-border bg-bridge-dark shadow-sm">
+                <img *ngIf="!file.isDirectory && isImageFile(file.name)" [src]="getThumbnailUrl(file.path)"
+                    [alt]="file.name" class="h-full w-full object-cover" />
+                <span *ngIf="file.isDirectory || !isImageFile(file.name)" class="text-lg">
+                    {{ file.isDirectory ? '📁' : '📄' }}
+                </span>
+            </div>
+
+            <div class="min-w-0">
+                <div class="truncate text-base font-medium text-bridge-text">{{ file.name }}</div>
+                <div class="mt-1 text-[11px] uppercase tracking-[0.18em] text-bridge-muted-dark">
+                    {{ file.isDirectory ? 'Folder' : 'File' }}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 text-sm text-bridge-text-secondary">
+            <span class="font-mono">{{ file.isDirectory ? '--' : formatSize(file.size) }}</span>
+            <button *ngIf="!file.isDirectory" type="button" (click)="$event.stopPropagation(); downloadFile.emit(file)"
+                [disabled]="transferBusy" [attr.aria-label]="'Download ' + file.name"
+                class="rounded-full border border-bridge-border bg-bridge-dark px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50">
+                Save
+            </button>
+        </div>
+    </div>
+</div>

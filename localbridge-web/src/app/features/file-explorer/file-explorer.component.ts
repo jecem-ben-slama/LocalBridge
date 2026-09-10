@@ -4,11 +4,23 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { interval, Subscription, switchMap, catchError, of } from 'rxjs';
 import { FileService } from '../../core/services/file.service';
 import { FileNode } from 'src/app/model/filenode';
+import { FileEmptyStateComponent } from './components/file-empty-state/file-empty-state.component';
+import { FileExplorerToolbarComponent } from './components/file-explorer-toolbar/file-explorer-toolbar.component';
+import { FileGridComponent } from './components/file-grid/file-grid.component';
+import { FileListComponent } from './components/file-list/file-list.component';
+import { FileTransferProgressComponent } from './components/file-transfer-progress/file-transfer-progress.component';
 
 @Component({
   selector: 'app-file-explorer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    FileExplorerToolbarComponent,
+    FileTransferProgressComponent,
+    FileListComponent,
+    FileGridComponent,
+    FileEmptyStateComponent,
+  ],
   templateUrl: './file-explorer.component.html',
 })
 export class FileExplorerComponent implements OnInit, OnDestroy {
@@ -25,6 +37,15 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
   errorMessage: string | null = null;
   viewMode: 'grid' | 'list' = 'list';
   source: 'pc' | 'phone' = 'pc';
+  searchTerm = '';
+  fileTypeFilter:
+    | 'all'
+    | 'image'
+    | 'video'
+    | 'audio'
+    | 'document'
+    | 'folder'
+    | 'file' = 'all';
 
   uploadProgressMap: { [fileName: string]: number } = {};
   isUploading: boolean = false;
@@ -163,9 +184,13 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     }
   }
 
-  downloadFile(node: FileNode, event: MouseEvent) {
-    event.stopPropagation();
-    void this.saveFile(node);
+  downloadFile(node: FileNode, event?: MouseEvent) {
+    event?.stopPropagation();
+    this.saveFile(node);
+  }
+
+  downloadSelectedFile(node: FileNode) {
+    this.saveFile(node);
   }
 
   private saveFile(node: FileNode) {
@@ -269,13 +294,59 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     );
   }
 
+  get filteredFiles(): FileNode[] {
+    const term = this.searchTerm.trim().toLowerCase();
+    return this.files.filter((file) => {
+      const matchesSearch =
+        !term ||
+        file.name.toLowerCase().includes(term) ||
+        file.path.toLowerCase().includes(term);
+
+      if (!matchesSearch) return false;
+
+      if (this.fileTypeFilter === 'all') return true;
+      if (this.fileTypeFilter === 'folder') return file.isDirectory;
+      if (this.fileTypeFilter === 'file') return !file.isDirectory;
+
+      if (file.isDirectory) return false;
+      if (this.fileTypeFilter === 'image') return this.isImageFile(file.name);
+      if (this.fileTypeFilter === 'video')
+        return ['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(
+          this.getExtension(file.name)
+        );
+      if (this.fileTypeFilter === 'audio')
+        return ['mp3', 'wav', 'ogg', 'm4a'].includes(
+          this.getExtension(file.name)
+        );
+      if (this.fileTypeFilter === 'document')
+        return [
+          'pdf',
+          'txt',
+          'csv',
+          'json',
+          'html',
+          'md',
+          'doc',
+          'docx',
+          'ppt',
+          'pptx',
+        ].includes(this.getExtension(file.name));
+
+      return true;
+    });
+  }
+
   isImageFile(fileName: string): boolean {
-    const ext = fileName.split('.').pop()?.toLowerCase();
+    const ext = this.getExtension(fileName);
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext || '');
   }
 
   getThumbnailUrl(path: string): string {
     return this.fileService.getThumbnailUrl(path, this.source);
+  }
+
+  private getExtension(fileName: string): string {
+    return fileName.split('.').pop()?.toLowerCase() || '';
   }
 
   formatSize(bytes?: number): string {

@@ -1,73 +1,107 @@
-<div class="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
-    <!-- Dedicated Sidebar Component -->
-    <app-sidebar [currentTab]="currentTab" (tabChange)="currentTab = $event" (onLogout)="logout()">
-    </app-sidebar>
-
-    <!-- Main Content View Area -->
-    <main class="flex-1 overflow-y-auto bg-slate-950">
-        <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur px-4 py-3 md:px-8">
-            <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
-                <nav class="flex items-center gap-2" aria-label="Quick navigation">
-                    <button (click)="currentTab = 'files'" [class.bg-blue-600]="currentTab === 'files'"
-                        class="px-3 py-2 rounded-lg text-xs text-slate-200 hover:bg-slate-800">Files</button>
-                    <button (click)="currentTab = 'connection'" [class.bg-blue-600]="currentTab === 'connection'"
-                        class="px-3 py-2 rounded-lg text-xs text-slate-200 hover:bg-slate-800">Connection</button>
-                </nav>
-                <div class="flex items-center gap-3 text-[11px] text-slate-400">
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full"
-                            [class.bg-emerald-400]="backendLive" [class.bg-red-400]="!backendLive"></span> PC
-                        session</span>
-                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full"
-                            [class.bg-emerald-400]="phoneServerLive" [class.bg-slate-600]="!phoneServerLive"></span>
-                        Phone</span>
-                    <span class="flex items-center gap-1.5" [class.text-emerald-400]="phoneConnected"
-                        [class.text-slate-500]="!phoneConnected">
-                        <span>{{ phoneConnected ? '✓' : '×' }}</span> Phone connected</span>
-                    <button (click)="refreshStatus()" [disabled]="phoneServerChecking"
-                        class="p-1.5 rounded-md text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-                        title="Refresh connection status" aria-label="Refresh connection status">↻</button>
+<div class="min-h-screen bg-bridge-darkest text-bridge-text font-sans">
+    <header class="sticky top-0 z-30 border-b border-bridge-border bg-bridge-dark/90 backdrop-blur-sm">
+        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+            <div class="flex items-center gap-3">
+                <div
+                    class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-bridge-primary to-bridge-accent text-sm font-bold text-white shadow-lg shadow-bridge-primary/20">
+                    LB
+                </div>
+                <div
+                    class="hidden sm:block text-[12px] font-semibold uppercase tracking-[0.22em] text-bridge-text-secondary">
+                    LocalBridge
                 </div>
             </div>
-        </header>
-        <div class="p-4 md:p-8">
-            <div class="max-w-5xl mx-auto">
-                <ng-container *ngIf="fileService.transferState$ | async as transfer">
-                    <div *ngIf="transfer.active"
-                        class="mb-5 rounded-xl border border-blue-500/30 bg-slate-900 p-4 shadow-lg">
-                        <div class="flex items-center justify-between text-sm text-slate-200">
-                            <span>{{ transfer.kind === 'upload' ? 'Uploading' : 'Downloading' }} {{ transfer.fileName
-                                }}</span>
-                            <span class="text-blue-400">{{ transfer.progress }}%</span>
-                        </div>
-                        <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-950">
-                            <div class="h-2 rounded-full bg-blue-500 transition-all duration-300"
-                                [style.width.%]="transfer.progress"></div>
-                        </div>
+
+            <nav class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-card/70 p-1 shadow-sm shadow-bridge-darkest/30"
+                aria-label="Primary navigation">
+                <button (click)="currentTab = 'files'" [class.bg-bridge-primary]="currentTab === 'files'"
+                    [class.text-white]="currentTab === 'files'"
+                    [class.text-bridge-text-secondary]="currentTab !== 'files'"
+                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    Files
+                </button>
+                <button (click)="currentTab = 'recent'" [class.bg-bridge-primary]="currentTab === 'recent'"
+                    [class.text-white]="currentTab === 'recent'"
+                    [class.text-bridge-text-secondary]="currentTab !== 'recent'"
+                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    Recent
+                </button>
+                <button (click)="currentTab = 'connection'" [class.bg-bridge-primary]="currentTab === 'connection'"
+                    [class.text-white]="currentTab === 'connection'"
+                    [class.text-bridge-text-secondary]="currentTab !== 'connection'"
+                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    Connection
+                </button>
+                <button (click)="currentTab = 'clipboard'" [class.bg-bridge-primary]="currentTab === 'clipboard'"
+                    [class.text-white]="currentTab === 'clipboard'"
+                    [class.text-bridge-text-secondary]="currentTab !== 'clipboard'"
+                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    Clipboard
+                </button>
+            </nav>
+
+            <div class="flex items-center gap-2 text-[11px] text-bridge-text-secondary">
+                <span
+                    class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5">
+                    <span class="h-2.5 w-2.5 rounded-full" [class.bg-bridge-success]="backendLive"
+                        [class.bg-bridge-muted-dark]="!backendLive"></span>
+                    PC
+                </span>
+                <span
+                    class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5">
+                    <span class="h-2.5 w-2.5 rounded-full" [class.bg-bridge-success]="phoneServerLive"
+                        [class.bg-bridge-muted-dark]="!phoneServerLive"></span>
+                    Phone
+                </span>
+                <span
+                    class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5"
+                    [class.text-bridge-success]="phoneConnected" [class.text-bridge-muted-dark]="!phoneConnected">
+                    <span>{{ phoneConnected ? '✓' : '×' }}</span>
+                    Connected
+                </span>
+                <button (click)="refreshStatus()" [disabled]="phoneServerChecking"
+                    class="flex h-8 w-8 items-center justify-center rounded-full border border-bridge-border bg-bridge-card/70 text-base text-bridge-text-secondary transition hover:bg-bridge-elevated hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Refresh connection status" aria-label="Refresh connection status">
+                    ↻
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="bg-bridge-darkest">
+        <div class="mx-auto max-w-6xl p-4 md:p-8">
+            <ng-container *ngIf="fileService.transferState$ | async as transfer">
+                <div *ngIf="transfer.active"
+                    class="mb-5 rounded-xl border border-bridge-primary/40 bg-bridge-card p-4 shadow-lg shadow-bridge-primary/5">
+                    <div class="flex items-center justify-between text-sm text-bridge-text-secondary">
+                        <span>{{ transfer.kind === 'upload' ? 'Uploading' : 'Downloading' }} {{ transfer.fileName
+                            }}</span>
+                        <span class="text-bridge-accent">{{ transfer.progress }}%</span>
                     </div>
-                </ng-container>
-
-                <!-- Files Tab -->
-                <!-- Files Tab -->
-                <div *ngIf="currentTab === 'files'">
-                    <app-file-explorer></app-file-explorer>
+                    <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-bridge-dark">
+                        <div class="h-2 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent transition-all duration-300"
+                            [style.width.%]="transfer.progress"></div>
+                    </div>
                 </div>
+            </ng-container>
 
-                <div *ngIf="currentTab === 'recent'">
-                    <app-recent-shared></app-recent-shared>
-                </div>
+            <div *ngIf="currentTab === 'files'">
+                <app-file-explorer></app-file-explorer>
+            </div>
 
-                <div *ngIf="currentTab === 'connection'">
-                    <app-connection></app-connection>
-                </div>
+            <div *ngIf="currentTab === 'recent'">
+                <app-recent-shared></app-recent-shared>
+            </div>
 
-                <!-- Clipboard Tab -->
-                <div *ngIf="currentTab === 'clipboard'">
-                    <h1 class="text-2xl font-bold mb-2">Universal Clipboard Sync</h1>
-                    <p class="text-slate-400 text-sm mb-6">
-                        Real-time clipboard broadcasting over local WebSocket channels.
-                    </p>
-                </div>
+            <div *ngIf="currentTab === 'connection'">
+                <app-connection></app-connection>
+            </div>
 
+            <div *ngIf="currentTab === 'clipboard'">
+                <h1 class="mb-2 text-2xl font-bold text-bridge-text">Universal Clipboard Sync</h1>
+                <p class="mb-6 text-sm text-bridge-text-secondary">
+                    Real-time clipboard broadcasting over local WebSocket channels.
+                </p>
             </div>
         </div>
     </main>

@@ -1,0 +1,16 @@
+<div
+    class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-4 text-sm text-bridge-text-secondary shadow-sm shadow-bridge-darkest/20">
+    <div *ngIf="phoneServerUrl; else emptyState"
+        class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span class="text-bridge-text-secondary">Phone endpoint</span>
+        <span class="break-all font-mono text-xs text-bridge-accent">{{ phoneServerUrl }}</span>
+    </div>
+
+    <ng-template #emptyState>
+        <p class="text-bridge-muted-dark">No phone server is registered.</p>
+    </ng-template>
+
+    <p *ngIf="lastChecked" class="mt-3 text-[11px] uppercase tracking-[0.18em] text-bridge-muted-dark">
+        Last checked: {{ lastChecked | date:'medium' }}
+    </p>
+</div>

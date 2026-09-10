@@ -1,0 +1,30 @@
+<div *ngIf="qrCodeUrl; else qrPlaceholder"
+    class="rounded-2xl border border-bridge-border bg-bridge-dark p-4 text-center shadow-inner shadow-bridge-darkest/30">
+    <div
+        class="mx-auto flex w-full max-w-[220px] items-center justify-center rounded-2xl bg-white p-3 shadow-lg shadow-bridge-darkest/30">
+        <img [src]="qrCodeUrl" alt="Pairing QR Code" class="h-auto w-full max-w-[180px] rounded-xl" />
+    </div>
+
+    <div class="mt-4 text-center">
+        <div class="text-[9px] font-semibold uppercase tracking-[0.24em] text-bridge-muted-dark">Pairing code</div>
+        <div class="mt-2 text-2xl font-bold tracking-[0.24em] text-bridge-text">{{ pairingCode }}</div>
+    </div>
+
+    <div class="mt-3 rounded-xl border border-bridge-border bg-bridge-card/60 p-2">
+        <p class="break-all text-[11px] text-bridge-text-secondary">{{ rawPairingUrl }}</p>
+    </div>
+</div>
+
+<ng-template #qrPlaceholder>
+    <div
+        class="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-bridge-border bg-bridge-dark/40 p-6 text-center">
+        <div
+            class="flex h-16 w-16 items-center justify-center rounded-2xl bg-bridge-card text-3xl shadow-inner shadow-bridge-darkest/20">
+            ⟡
+        </div>
+        <p class="mt-4 text-base font-medium text-bridge-text">No QR code generated yet</p>
+        <p class="mt-1 max-w-xs text-sm text-bridge-text-secondary">
+            Generate one to create a secure local pairing link for your phone.
+        </p>
+    </div>
+</ng-template>

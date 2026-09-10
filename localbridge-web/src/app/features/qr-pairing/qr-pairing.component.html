@@ -1,25 +1,34 @@
-<div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4 max-w-xl">
-    <h2 class="text-lg font-semibold text-white">Mobile Device Pairing</h2>
-    <p class="text-slate-400 text-sm">
-        Click below to generate a secure QR code. Scanning it with a phone on your local Wi-Fi will instantly log it in
-        without typing a token.
-    </p>
+<div
+    class="rounded-3xl border border-bridge-border bg-gradient-to-br from-bridge-card via-bridge-card to-bridge-dark/80 p-5 shadow-lg shadow-bridge-darkest/20">
+    <div class="flex items-center justify-between gap-3">
+        <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-bridge-primary">Secure pairing</p>
+            <h2 class="mt-2 text-xl font-semibold text-bridge-text">Mobile device pairing</h2>
+        </div>
+        <span
+            class="rounded-full border border-bridge-primary/30 bg-bridge-primary/10 px-2 py-1 text-[9px] font-medium uppercase tracking-[0.2em] text-bridge-primary">
+            Local Wi‑Fi
+        </span>
+    </div>
 
-    <button (click)="generatePairingQr()" [disabled]="isGeneratingQr"
-        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50">
-        {{ isGeneratingQr ? 'Generating...' : 'Generate Pairing QR Code' }}
-    </button>
+    <div class="mt-4 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div class="space-y-4">
+            <div class="rounded-2xl border border-bridge-border bg-bridge-dark/60 p-4">
+                <p class="text-sm text-bridge-text-secondary">
+                    Generate a secure QR code for your phone. Scan it on the same local network to connect instantly
+                    without manually typing a token.
+                </p>
+            </div>
 
-    <!-- Render QR Code and URL when available -->
-    <div *ngIf="qrCodeUrl"
-        class="mt-4 p-4 bg-slate-950 border border-slate-800 rounded-lg flex flex-col items-center space-y-3">
-        <img [src]="qrCodeUrl" alt="Pairing QR Code" class="w-48 h-48 bg-white p-2 rounded-lg shadow" />
+            <button (click)="generatePairingQr()" [disabled]="isGeneratingQr"
+                class="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                {{ isGeneratingQr ? 'Generating...' : 'Generate pairing QR' }}
+            </button>
 
-        <div class="text-center space-y-1">
-            <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500">Pairing code</div>
-            <div class="text-2xl font-bold tracking-[0.25em] text-white">{{ pairingCode }}</div>
+            <app-qr-pairing-steps></app-qr-pairing-steps>
         </div>
 
-        <span class="text-xs text-slate-400 text-center break-all max-w-md">{{ rawPairingUrl }}</span>
+        <app-qr-pairing-card [qrCodeUrl]="qrCodeUrl" [pairingCode]="pairingCode"
+            [rawPairingUrl]="rawPairingUrl"></app-qr-pairing-card>
     </div>
 </div>

@@ -1,45 +1,83 @@
 <section class="space-y-5">
-    <div class="flex items-center justify-between">
-        <div>
-            <p class="text-xs uppercase tracking-[0.18em] text-blue-400">LocalBridge folder</p>
-            <h1 class="text-2xl font-bold text-white">Recently Shared</h1>
-            <p class="mt-1 text-sm text-slate-400">Files shared between this PC and your phone.</p>
+    <div
+        class="flex flex-col gap-4 rounded-2xl border border-bridge-border bg-bridge-card/80 p-5 shadow-sm shadow-bridge-darkest/20">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <p class="text-[10px] font-medium uppercase tracking-[0.22em] text-bridge-primary">LocalBridge folder
+                </p>
+                <h1 class="mt-2 text-3xl font-bold text-bridge-text">Recently Shared</h1>
+                <p class="mt-1 text-base text-bridge-text-secondary">Files shared between this PC and your phone.</p>
+            </div>
+
+            <button type="button" (click)="reload()" [disabled]="loading"
+                class="rounded-full border border-bridge-border bg-bridge-dark px-4 py-2.5 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/50 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50">
+                {{ loading ? 'Loading...' : 'Refresh' }}
+            </button>
         </div>
-        <button type="button" (click)="reload()" [disabled]="loading"
-            class="rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-50">
-            {{ loading ? 'Loading...' : 'Refresh' }}
-        </button>
+
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <label class="block w-full md:max-w-md">
+                <span class="sr-only">Search shared files</span>
+                <input type="text" [(ngModel)]="searchTerm" placeholder="Search files..."
+                    class="w-full rounded-full border border-bridge-border bg-bridge-dark px-3 py-2.5 text-sm text-bridge-text placeholder:text-bridge-muted-dark focus:border-bridge-primary/50 focus:outline-none" />
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-bridge-text-secondary">
+                <span>Type</span>
+                <select [(ngModel)]="fileTypeFilter"
+                    class="rounded-full border border-bridge-border bg-bridge-dark px-3 py-2 text-sm text-bridge-text focus:border-bridge-primary/50 focus:outline-none">
+                    <option value="all">All</option>
+                    <option value="image">Images</option>
+                    <option value="video">Videos</option>
+                    <option value="audio">Audio</option>
+                    <option value="document">Documents</option>
+                    <option value="file">Files</option>
+                </select>
+            </label>
+        </div>
     </div>
 
-    <div *ngIf="error" class="rounded-lg border border-red-900 bg-red-950/40 p-4 text-sm text-red-200">
+    <div *ngIf="error"
+        class="rounded-2xl border border-bridge-error/40 bg-bridge-error-soft p-4 text-sm text-bridge-error">
         {{ error }}
     </div>
 
-    <div *ngIf="loading" class="rounded-xl border border-slate-800 bg-slate-900 p-12 text-center text-slate-400">
+    <div *ngIf="loading"
+        class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-12 text-center text-bridge-text-secondary">
         Loading shared files...
     </div>
 
-    <div *ngIf="!loading && !error && files.length === 0"
-        class="rounded-xl border border-slate-800 bg-slate-900 p-12 text-center text-slate-500">
-        No files have been shared yet.
+    <div *ngIf="!loading && !error && filteredFiles.length === 0"
+        class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-12 text-center text-bridge-text-secondary">
+        No files match your search.
     </div>
 
-    <div *ngIf="!loading && !error && files.length > 0"
-        class="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-        <div *ngFor="let file of files" class="flex items-center gap-4 p-4 hover:bg-slate-800/50">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-950">
+    <div *ngIf="!loading && !error && filteredFiles.length > 0"
+        class="divide-y divide-bridge-border overflow-hidden rounded-2xl border border-bridge-border bg-bridge-card/80">
+        <button *ngFor="let file of filteredFiles" type="button" (click)="openPreview(file)"
+            class="flex w-full items-center gap-4 p-4 text-left transition hover:bg-bridge-elevated/40">
+            <div
+                class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-bridge-border bg-bridge-dark">
                 <img *ngIf="isImage(file)" [src]="thumbnail(file)" [alt]="file.name"
                     class="h-full w-full object-cover" />
                 <span *ngIf="!isImage(file)" class="text-2xl">📄</span>
             </div>
+
             <div class="min-w-0 flex-1">
-                <p class="truncate font-medium text-slate-100">{{ file.name }}</p>
-                <p class="truncate text-xs text-slate-500">{{ file.path }}</p>
+                <p class="truncate font-medium text-bridge-text">{{ file.name }}</p>
+                <p class="mt-1 truncate text-xs text-bridge-text-secondary">{{ file.path }}</p>
             </div>
-            <button *ngIf="!file.isDirectory" type="button" (click)="download(file)"
-                class="rounded-lg px-3 py-2 text-sm text-blue-300 hover:bg-blue-500/10 hover:text-blue-200">
+
+            <button *ngIf="!file.isDirectory" type="button" (click)="$event.stopPropagation(); download(file)"
+                class="rounded-full border border-bridge-primary/40 bg-bridge-primary-soft px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-bridge-text transition hover:border-bridge-primary hover:bg-bridge-primary/20">
                 Save
             </button>
-        </div>
+        </button>
     </div>
+
+    <app-file-preview-modal [file]="previewFile" [previewUrl]="previewUrl" [previewKind]="previewKind"
+        [downloadDisabled]="loading" (close)="closePreview()" (download)="download($event)">
+    </app-file-preview-modal>
+
+    <app-toast [message]="toastMessage" [type]="toastType"></app-toast>
 </section>

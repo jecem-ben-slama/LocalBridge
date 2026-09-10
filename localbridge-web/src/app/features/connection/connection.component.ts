@@ -1,14 +1,23 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { interval, Subscription, catchError, of, switchMap } from 'rxjs';
+import { interval, Subscription, catchError, of } from 'rxjs';
 
 import { FileService } from '../../core/services/file.service';
 import { QrPairingComponent } from '../qr-pairing/qr-pairing.component';
+import { ConnectionEndpointCardComponent } from './components/connection-endpoint-card/connection-endpoint-card.component';
+import { ConnectionHeaderComponent } from './components/connection-header/connection-header.component';
+import { ConnectionStatusCardComponent } from './components/connection-status-card/connection-status-card.component';
 
 @Component({
   selector: 'app-connection',
   standalone: true,
-  imports: [CommonModule, QrPairingComponent],
+  imports: [
+    CommonModule,
+    QrPairingComponent,
+    ConnectionHeaderComponent,
+    ConnectionStatusCardComponent,
+    ConnectionEndpointCardComponent,
+  ],
   templateUrl: './connection.component.html',
 })
 export class ConnectionComponent implements OnInit, OnDestroy {
