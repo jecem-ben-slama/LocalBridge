@@ -1,23 +1,26 @@
-<div class="grid max-h-[550px] grid-cols-2 gap-4 overflow-y-auto p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+<div
+    class="grid max-h-[550px] grid-cols-2 gap-3 overflow-y-auto p-3 sm:grid-cols-3 sm:gap-4 sm:p-4 md:grid-cols-4 lg:grid-cols-5">
     <div *ngFor="let file of files" (click)="openNode.emit(file)"
-        class="group flex cursor-pointer flex-col items-center rounded-2xl border border-bridge-border bg-bridge-dark/60 p-4 transition hover:border-bridge-primary/40 hover:bg-bridge-card">
+        class="group flex cursor-pointer flex-col items-center rounded-2xl border border-bridge-border bg-bridge-dark/60 p-2.5 transition hover:border-bridge-primary/40 hover:bg-bridge-card sm:p-3">
         <div
-            class="relative mb-3 flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-bridge-border bg-bridge-card">
+            class="relative mb-2.5 flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-bridge-border bg-bridge-card sm:mb-3">
             <img *ngIf="!file.isDirectory && isImageFile(file.name)" [src]="getThumbnailUrl(file.path)"
                 [alt]="file.name" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-            <span *ngIf="file.isDirectory || !isImageFile(file.name)" class="text-3xl">
+            <div *ngIf="file.isDirectory || !isImageFile(file.name)"
+                class="flex h-[58%] w-[58%] items-center justify-center rounded-full bg-bridge-dark text-3xl shadow-inner shadow-bridge-darkest/30 sm:text-4xl">
                 {{ file.isDirectory ? '📁' : '📄' }}
-            </span>
+            </div>
         </div>
 
-        <span class="w-full truncate text-center text-sm font-medium text-bridge-text">{{ file.name }}</span>
-        <span class="mt-1 text-[11px] uppercase tracking-[0.18em] text-bridge-muted-dark">
+        <span class="w-full truncate text-center text-xs font-medium text-bridge-text sm:text-sm">{{ file.name }}</span>
+        <span
+            class="mt-1 text-[10px] uppercase tracking-[0.14em] text-bridge-muted-dark sm:text-[11px] sm:tracking-[0.18em]">
             {{ file.isDirectory ? 'Folder' : formatSize(file.size) }}
         </span>
 
         <button *ngIf="!file.isDirectory" type="button" (click)="$event.stopPropagation(); downloadFile.emit(file)"
             [disabled]="transferBusy" [attr.aria-label]="'Download ' + file.name"
-            class="mt-2 rounded-full border border-bridge-border bg-bridge-card px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50">
+            class="mt-2 rounded-full border border-bridge-border bg-bridge-card px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-[11px] sm:tracking-[0.18em]">
             Save
         </button>
     </div>

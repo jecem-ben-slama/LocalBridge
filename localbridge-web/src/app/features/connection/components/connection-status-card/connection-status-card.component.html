@@ -1,9 +1,11 @@
 <div
-    class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 transition hover:border-bridge-border-strong hover:bg-bridge-elevated/80">
-    <div class="flex items-start justify-between gap-3">
-        <div>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-bridge-muted-dark">{{ label }}</p>
-            <p class="mt-3 text-base font-semibold text-bridge-text" [ngClass]="{
+    class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 transition hover:border-bridge-border-strong hover:bg-bridge-elevated/80 sm:p-4">
+    <div class="flex items-start justify-between gap-2 sm:gap-3">
+        <div class="min-w-0">
+            <p
+                class="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-bridge-muted-dark sm:text-[10px] sm:tracking-[0.22em]">
+                {{ label }}</p>
+            <p class="mt-2 text-sm font-semibold text-bridge-text sm:mt-3 sm:text-base" [ngClass]="{
         'text-bridge-success': tone === 'success',
         'text-bridge-error': tone === 'danger',
         'text-bridge-warning': tone === 'warning',
@@ -13,7 +15,8 @@
             </p>
         </div>
 
-        <span *ngIf="badge" class="rounded-full border px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em]"
+        <span *ngIf="badge"
+            class="shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-medium uppercase tracking-[0.14em] sm:text-[9px] sm:tracking-[0.18em]"
             [ngClass]="{
         'border-bridge-success/30 bg-bridge-success-soft text-bridge-success': tone === 'success',
         'border-bridge-error/30 bg-bridge-error-soft text-bridge-error': tone === 'danger',
@@ -24,5 +27,5 @@
         </span>
     </div>
 
-    <p *ngIf="detail" class="mt-2 text-xs text-bridge-text-secondary">{{ detail }}</p>
+    <p *ngIf="detail" class="mt-2 text-[11px] text-bridge-text-secondary sm:text-xs">{{ detail }}</p>
 </div>

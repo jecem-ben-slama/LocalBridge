@@ -4,11 +4,12 @@ import { AuthService } from './core/services/auth.service';
 import { SessionService } from './core/services/session.service';
 import { LoginComponent } from './features/auth/login.component';
 import { DashboardLayoutComponent } from './features/dashboard/dashboard-layout.component';
+import { UpdateBannerComponent } from "./features/update-banner/update-banner.component";
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, LoginComponent, DashboardLayoutComponent],
+  imports: [CommonModule, LoginComponent, DashboardLayoutComponent, UpdateBannerComponent],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
@@ -16,7 +17,7 @@ export class AppComponent implements OnInit {
   sessionService = inject(SessionService);
 
   ngOnInit() {
-    this.authService.handleUrlTokenCapture();
+   
     this.initializeSession();
   }
 
@@ -24,9 +25,6 @@ export class AppComponent implements OnInit {
     // Try to create a session if one doesn't exist
     if (!this.sessionService.getSessionId()) {
       this.sessionService.createSession('LocalBridge Web App').subscribe({
-        next: () => {
-          console.log('[AppComponent] Session created successfully');
-        },
         error: (error) => {
           console.error('[AppComponent] Failed to create session:', error);
         },

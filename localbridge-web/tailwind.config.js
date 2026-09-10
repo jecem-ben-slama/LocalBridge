@@ -62,7 +62,17 @@ module.exports = {
           info: '#3B82F6',
           'info-soft': 'rgba(59, 130, 246, 0.16)',
         }
-      }
+      },
+
+      keyframes: {
+        'slide-in-from-top': {
+          '0%': { opacity: '0', transform: 'translateY(-8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'slide-in-from-top': 'slide-in-from-top 0.3s ease-out',
+      },
     },
   },
 

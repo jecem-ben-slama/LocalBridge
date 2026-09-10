@@ -1,81 +1,114 @@
 <div class="min-h-screen bg-bridge-darkest text-bridge-text font-sans">
     <header class="sticky top-0 z-30 border-b border-bridge-border bg-bridge-dark/90 backdrop-blur-sm">
-        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-            <div class="flex items-center gap-3">
-                <div
-                    class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-bridge-primary to-bridge-accent text-sm font-bold text-white shadow-lg shadow-bridge-primary/20">
-                    LB
+        <div class="mx-auto max-w-6xl px-3 py-2.5 sm:px-4 sm:py-3 md:px-6">
+            <div class="flex items-center justify-between gap-2 sm:gap-4">
+                <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <div
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-bridge-primary to-bridge-accent text-xs font-bold text-white shadow-lg shadow-bridge-primary/20 sm:h-9 sm:w-9 sm:text-sm">
+                        LB
+                    </div>
+                    <div
+                        class="hidden truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-bridge-text-secondary sm:block sm:text-[12px] sm:tracking-[0.22em]">
+                        LocalBridge
+                    </div>
                 </div>
-                <div
-                    class="hidden sm:block text-[12px] font-semibold uppercase tracking-[0.22em] text-bridge-text-secondary">
-                    LocalBridge
+
+                <!-- Tab nav: visible inline from md up; on mobile/tablet it drops to its own scrollable row below -->
+                <nav class="hidden items-center gap-1 rounded-full border border-bridge-border bg-bridge-card/70 p-1 shadow-sm shadow-bridge-darkest/30 md:flex"
+                    aria-label="Primary navigation">
+                    <button (click)="currentTab = 'files'" [class.bg-bridge-primary]="currentTab === 'files'"
+                        [class.text-white]="currentTab === 'files'"
+                        [class.text-bridge-text-secondary]="currentTab !== 'files'"
+                        class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                        Files
+                    </button>
+                    <button (click)="currentTab = 'recent'" [class.bg-bridge-primary]="currentTab === 'recent'"
+                        [class.text-white]="currentTab === 'recent'"
+                        [class.text-bridge-text-secondary]="currentTab !== 'recent'"
+                        class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                        Recent
+                    </button>
+                    <button (click)="currentTab = 'connection'" [class.bg-bridge-primary]="currentTab === 'connection'"
+                        [class.text-white]="currentTab === 'connection'"
+                        [class.text-bridge-text-secondary]="currentTab !== 'connection'"
+                        class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                        Connection
+                    </button>
+                    <button (click)="currentTab = 'clipboard'" [class.bg-bridge-primary]="currentTab === 'clipboard'"
+                        [class.text-white]="currentTab === 'clipboard'"
+                        [class.text-bridge-text-secondary]="currentTab !== 'clipboard'"
+                        class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                        Clipboard
+                    </button>
+                </nav>
+
+                <div class="flex shrink-0 items-center gap-1.5 text-[11px] text-bridge-text-secondary sm:gap-2">
+                    <span
+                        class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2 py-1.5 sm:px-2.5">
+                        <span class="h-2.5 w-2.5 rounded-full" [class.bg-bridge-success]="backendLive"
+                            [class.bg-bridge-muted-dark]="!backendLive"></span>
+                        <span class="hidden sm:inline">PC</span>
+                    </span>
+                    <span
+                        class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2 py-1.5 sm:px-2.5">
+                        <span class="h-2.5 w-2.5 rounded-full" [class.bg-bridge-success]="phoneServerLive"
+                            [class.bg-bridge-muted-dark]="!phoneServerLive"></span>
+                        <span class="hidden sm:inline">Phone</span>
+                    </span>
+                    <span
+                        class="hidden items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5 md:flex"
+                        [class.text-bridge-success]="phoneConnected" [class.text-bridge-muted-dark]="!phoneConnected">
+                        <span>{{ phoneConnected ? '✓' : '×' }}</span>
+                        Connected
+                    </span>
+                    <button (click)="refreshStatus()" [disabled]="phoneServerChecking"
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-bridge-border bg-bridge-card/70 text-base text-bridge-text-secondary transition hover:bg-bridge-elevated hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Refresh connection status" aria-label="Refresh connection status">
+                        ↻
+                    </button>
                 </div>
             </div>
 
-            <nav class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-card/70 p-1 shadow-sm shadow-bridge-darkest/30"
+            <!-- Tab nav: mobile/tablet row, horizontally scrollable, hidden from md up -->
+            <nav class="mt-2.5 flex items-center justify-center gap-1 overflow-x-auto rounded-full border border-bridge-border bg-bridge-card/70 p-1 shadow-sm shadow-bridge-darkest/30 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:hidden"
                 aria-label="Primary navigation">
                 <button (click)="currentTab = 'files'" [class.bg-bridge-primary]="currentTab === 'files'"
                     [class.text-white]="currentTab === 'files'"
                     [class.text-bridge-text-secondary]="currentTab !== 'files'"
-                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text sm:text-sm">
                     Files
                 </button>
                 <button (click)="currentTab = 'recent'" [class.bg-bridge-primary]="currentTab === 'recent'"
                     [class.text-white]="currentTab === 'recent'"
                     [class.text-bridge-text-secondary]="currentTab !== 'recent'"
-                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text sm:text-sm">
                     Recent
                 </button>
                 <button (click)="currentTab = 'connection'" [class.bg-bridge-primary]="currentTab === 'connection'"
                     [class.text-white]="currentTab === 'connection'"
                     [class.text-bridge-text-secondary]="currentTab !== 'connection'"
-                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text sm:text-sm">
                     Connection
                 </button>
                 <button (click)="currentTab = 'clipboard'" [class.bg-bridge-primary]="currentTab === 'clipboard'"
                     [class.text-white]="currentTab === 'clipboard'"
                     [class.text-bridge-text-secondary]="currentTab !== 'clipboard'"
-                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text">
+                    class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors hover:bg-bridge-elevated hover:text-bridge-text sm:text-sm">
                     Clipboard
                 </button>
             </nav>
-
-            <div class="flex items-center gap-2 text-[11px] text-bridge-text-secondary">
-                <span
-                    class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5">
-                    <span class="h-2.5 w-2.5 rounded-full" [class.bg-bridge-success]="backendLive"
-                        [class.bg-bridge-muted-dark]="!backendLive"></span>
-                    PC
-                </span>
-                <span
-                    class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5">
-                    <span class="h-2.5 w-2.5 rounded-full" [class.bg-bridge-success]="phoneServerLive"
-                        [class.bg-bridge-muted-dark]="!phoneServerLive"></span>
-                    Phone
-                </span>
-                <span
-                    class="flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-card/70 px-2.5 py-1.5"
-                    [class.text-bridge-success]="phoneConnected" [class.text-bridge-muted-dark]="!phoneConnected">
-                    <span>{{ phoneConnected ? '✓' : '×' }}</span>
-                    Connected
-                </span>
-                <button (click)="refreshStatus()" [disabled]="phoneServerChecking"
-                    class="flex h-8 w-8 items-center justify-center rounded-full border border-bridge-border bg-bridge-card/70 text-base text-bridge-text-secondary transition hover:bg-bridge-elevated hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Refresh connection status" aria-label="Refresh connection status">
-                    ↻
-                </button>
-            </div>
         </div>
     </header>
 
     <main class="bg-bridge-darkest">
-        <div class="mx-auto max-w-6xl p-4 md:p-8">
+        <div class="mx-auto max-w-6xl p-3 sm:p-4 md:p-8">
             <ng-container *ngIf="fileService.transferState$ | async as transfer">
                 <div *ngIf="transfer.active"
-                    class="mb-5 rounded-xl border border-bridge-primary/40 bg-bridge-card p-4 shadow-lg shadow-bridge-primary/5">
-                    <div class="flex items-center justify-between text-sm text-bridge-text-secondary">
-                        <span>{{ transfer.kind === 'upload' ? 'Uploading' : 'Downloading' }} {{ transfer.fileName
-                            }}</span>
+                    class="mb-4 rounded-xl border border-bridge-primary/40 bg-bridge-card p-3 shadow-lg shadow-bridge-primary/5 sm:mb-5 sm:p-4">
+                    <div
+                        class="flex flex-col gap-1 text-xs text-bridge-text-secondary sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+                        <span class="truncate">{{ transfer.kind === 'upload' ? 'Uploading' : 'Downloading' }} {{
+                            transfer.fileName }}</span>
                         <span class="text-bridge-accent">{{ transfer.progress }}%</span>
                     </div>
                     <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-bridge-dark">
@@ -98,7 +131,7 @@
             </div>
 
             <div *ngIf="currentTab === 'clipboard'">
-                <h1 class="mb-2 text-2xl font-bold text-bridge-text">Universal Clipboard Sync</h1>
+                <h1 class="mb-2 text-xl font-bold text-bridge-text sm:text-2xl">Universal Clipboard Sync</h1>
                 <p class="mb-6 text-sm text-bridge-text-secondary">
                     Real-time clipboard broadcasting over local WebSocket channels.
                 </p>

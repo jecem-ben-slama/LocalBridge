@@ -1,0 +1,41 @@
+<div *ngIf="updateService.hasUpdate()"
+    class="relative flex flex-wrap items-center justify-center gap-4 px-12 py-3 bg-gradient-to-r from-bridge-card to-bridge-elevated border-b border-bridge-warning-soft text-bridge-text text-sm shadow-sm animate-slide-in-from-top"
+    role="alert">
+    <div class="flex items-center justify-center gap-3 flex-wrap text-center">
+        <!-- Icon + badge -->
+        <span
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-bridge-warning-soft text-bridge-warning border border-bridge-warning/20 shadow-sm">
+            <svg class="w-3.5 h-3.5 animate-pulse" fill="currentColor" viewBox="0 0 20 20"
+                xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd"
+                    d="M10 2a1 1 0 01.894.553l1.382 2.76 3.047.443a1 1 0 01.554 1.706l-2.205 2.15.52 3.033a1 1 0 01-1.451 1.054L10 12.347l-2.741 1.352a1 1 0 01-1.451-1.054l.52-3.033-2.205-2.15a1 1 0 01.554-1.706l3.047-.443L9.106 2.553A1 1 0 0110 2z"
+                    clip-rule="evenodd" />
+            </svg>
+            Update
+        </span>
+
+        <span class="text-bridge-muted">
+            A new version of <span class="text-bridge-text font-medium">LocalBridge</span>
+            (<strong class="text-bridge-accent font-semibold">{{ updateService.updateInfo()?.latestVersion
+                }}</strong>) is available!
+        </span>
+
+        <a [href]="updateService.updateInfo()?.releaseUrl" target="_blank" rel="noopener noreferrer"
+            class="group inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-bridge-primary text-bridge-darkest shadow-sm hover:bg-bridge-primary-hover hover:shadow-md active:bg-bridge-primary-active transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50">
+            <svg class="w-3.5 h-3.5 transition-transform duration-150 group-hover:translate-y-0.5" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download Update
+        </a>
+    </div>
+
+    <button (click)="updateService.dismissBanner()"
+        class="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-bridge-muted hover:text-bridge-text hover:bg-bridge-elevated transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-bridge-border-strong"
+        aria-label="Dismiss update notification">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+    </button>
+</div>

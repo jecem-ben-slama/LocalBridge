@@ -28,7 +28,6 @@ export class FileExplorerToolbarComponent {
 
   @Output() goBack = new EventEmitter<void>();
   @Output() selectSource = new EventEmitter<'pc' | 'phone'>();
-  @Output() uploadToPc = new EventEmitter<void>();
   @Output() uploadToPhone = new EventEmitter<void>();
   @Output() refresh = new EventEmitter<void>();
   @Output() setViewMode = new EventEmitter<'list' | 'grid'>();

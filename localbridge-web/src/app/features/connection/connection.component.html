@@ -1,7 +1,7 @@
-<section class="space-y-4">
+<section class="space-y-4 sm:space-y-5">
     <app-connection-header [checking]="checking" (checkNow)="checkNow()"></app-connection-header>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         <app-connection-status-card label="Overall" [value]="backendLive && phoneServerLive ? 'Live' : 'Offline'"
             [badge]="backendLive && phoneServerLive ? 'online' : 'offline'"
             [tone]="backendLive && phoneServerLive ? 'success' : 'danger'" detail="PC and phone server health">
@@ -23,11 +23,12 @@
         </app-connection-status-card>
     </div>
 
-    <div class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-4 shadow-sm shadow-bridge-darkest/20">
-        <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold text-bridge-text">Pair a phone</h2>
+    <div
+        class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 sm:p-4">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <h2 class="text-base font-semibold text-bridge-text sm:text-lg">Pair a phone</h2>
             <span
-                class="rounded-full border border-bridge-border bg-bridge-dark px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.18em] text-bridge-text-secondary">secure</span>
+                class="rounded-full border border-bridge-border bg-bridge-dark px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-bridge-text-secondary sm:tracking-[0.18em]">secure</span>
         </div>
         <app-qr-pairing></app-qr-pairing>
     </div>

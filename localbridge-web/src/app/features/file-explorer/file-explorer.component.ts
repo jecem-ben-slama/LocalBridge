@@ -106,6 +106,10 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
             `${action} of ${file} finished successfully.`,
             'success'
           );
+          // Refresh folder listing after successful upload
+          if (state.kind === 'upload') {
+            this.refreshCurrentFolder();
+          }
         }
       }
 
@@ -283,15 +287,18 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.loadFiles(previousPath === '' ? undefined : previousPath);
   }
 
-  onFileSelected(event: any, destination: 'pc' | 'phone' = 'pc') {
+  uploadToPhone(event: any) {
     if (this.fileService.transferBusy) return;
     const selectedFiles: FileList = event.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
-    this.fileService.startUpload(
-      this.currentPath,
-      selectedFiles[0],
-      destination
-    );
+
+    // Direct uploads to phone target:
+    // If browsing PC tab -> place in default 'Bridge' phone folder
+    // If browsing Phone tab -> place in current folder
+    const targetPath = this.source === 'pc' ? 'LocalBridge' : this.currentPath;
+
+    this.fileService.startUpload(targetPath, selectedFiles[0], 'phone');
+    event.target.value = '';
   }
 
   get filteredFiles(): FileNode[] {

@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService } from 'src/app/core/services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -16,10 +16,20 @@ export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
 
   ngOnInit() {
-    // If user arrived via a QR code link containing the token, auto-authenticate and reload
-    if (this.authService.handleUrlTokenCapture()) {
-      window.location.reload();
-    }
+    // If we arrived via a QR code / pairing link, auto-authenticate.
+    const capture$ = this.authService.captureUrlToken();
+    if (!capture$) return;
+
+    this.isLoading = true;
+    capture$.subscribe({
+      next: () => window.location.reload(),
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage =
+          err.error?.message ||
+          'The link token was invalid or expired. Enter it manually below.';
+      },
+    });
   }
 
   onSubmit(event: Event) {

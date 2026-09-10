@@ -1,9 +1,9 @@
-<div class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-4 shadow-sm shadow-bridge-darkest/20">
-    <div class="flex items-center justify-between gap-3">
-        <div class="flex-1">
-            <div class="flex items-center justify-between gap-3 text-sm text-bridge-text-secondary">
-                <span>{{ title }} {{ fileName || '' }}</span>
-                <span class="text-bridge-accent">{{ progress }}%</span>
+<div class="rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 sm:p-4">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2 text-xs text-bridge-text-secondary sm:gap-3 sm:text-sm">
+                <span class="truncate">{{ title }} {{ fileName || '' }}</span>
+                <span class="shrink-0 text-bridge-accent">{{ progress }}%</span>
             </div>
             <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-bridge-dark">
                 <div class="h-2 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent transition-all duration-300"
@@ -12,7 +12,7 @@
         </div>
 
         <button *ngIf="showCancel" (click)="cancel.emit()"
-            class="inline-flex items-center justify-center rounded-full border border-bridge-error/40 bg-bridge-error-soft px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-bridge-error transition hover:bg-bridge-error-soft/80">
+            class="inline-flex shrink-0 items-center justify-center self-start rounded-full border border-bridge-error/40 bg-bridge-error-soft px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-bridge-error transition hover:bg-bridge-error-soft/80 sm:self-auto">
             Cancel
         </button>
     </div>

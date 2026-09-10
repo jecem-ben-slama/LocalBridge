@@ -1,78 +1,109 @@
 <div
-    class="flex flex-col gap-4 rounded-2xl border border-bridge-border bg-bridge-card/80 p-5 shadow-sm shadow-bridge-darkest/20">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex items-center gap-3">
-            <button *ngIf="pathHistoryLength > 0" (click)="goBack.emit()"
-                class="inline-flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-3.5 py-2 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text">
-                <span>←</span>
-                <span>Back</span>
+    class="flex flex-col gap-3 rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 backdrop-blur-sm sm:gap-4 sm:p-4 md:p-5">
+    <!-- Top Navigation & Action Bar -->
+    <div class="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+        <!-- Title & Location Info -->
+        <div class="flex items-center gap-2.5 sm:gap-3">
+            <button *ngIf="pathHistoryLength > 0" (click)="goBack.emit()" type="button" aria-label="Go back"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-2.5 py-2 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text focus:outline-none focus:ring-2 focus:ring-bridge-primary/40 sm:px-3.5">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span class="hidden sm:inline">Back</span>
             </button>
 
-            <div>
-                <h1 class="text-2xl font-bold tracking-tight text-bridge-text">{{ title || (source === 'pc' ? 'PC Files'
-                    :
-                    'Phone Files') }}</h1>
-                <p class="mt-1 text-[12px] font-mono text-bridge-text-secondary">
-                    Path: <span class="text-bridge-accent">{{ currentPath || '/' }}</span>
+            <div class="min-w-0">
+                <h1 class="truncate text-lg font-bold tracking-tight text-bridge-text sm:text-xl md:text-2xl">
+                    {{ title || (source === 'pc' ? 'PC Files' : 'Phone Files') }}
+                </h1>
+                <p class="mt-0.5 truncate font-mono text-[11px] text-bridge-text-secondary sm:mt-1 sm:text-xs">
+                    Path: <span class="text-bridge-accent font-semibold">{{ currentPath || '/' }}</span>
                 </p>
             </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Actions & Source Controls -->
+        <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+
+            <!-- Source Toggle (PC vs Phone) -->
             <div class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-dark p-1">
-                <button (click)="selectSource.emit('pc')" [class.bg-bridge-card]="source === 'pc'"
-                    class="rounded-full px-4 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                <button type="button" (click)="selectSource.emit('pc')"
+                    [ngClass]="source === 'pc' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm">
                     PC
                 </button>
-                <button (click)="selectSource.emit('phone')" [class.bg-bridge-card]="source === 'phone'"
-                    class="rounded-full px-4 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                <button type="button" (click)="selectSource.emit('phone')"
+                    [ngClass]="source === 'phone' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm">
                     Phone
                 </button>
             </div>
 
-            <button *ngIf="source === 'pc'" (click)="uploadToPc.emit()" [disabled]="transferBusy || isUploading"
-                class="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
-                <span>📤</span>
-                <span>{{ isUploading ? 'Uploading...' : 'Upload to PC' }}</span>
+            <!-- Single Upload Button (Label depends on active tab) -->
+            <button (click)="uploadToPhone.emit()" [disabled]="transferBusy || isUploading" type="button"
+                [attr.aria-label]="isUploading ? 'Uploading...' : (source === 'pc' ? 'Upload to Phone' : 'Upload here')"
+                class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
+                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span class="hidden sm:inline">{{ isUploading ? 'Uploading...' : (source === 'pc' ? 'Upload to Phone' :
+                    'Upload here') }}</span>
+                <span class="sm:hidden">{{ isUploading ? '...' : 'Upload' }}</span>
             </button>
 
-            <button *ngIf="source === 'phone'" (click)="uploadToPhone.emit()" [disabled]="transferBusy || isUploading"
-                class="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
-                <span>📱</span>
-                <span>{{ isUploading ? 'Uploading...' : 'Upload here' }}</span>
+            <!-- Refresh Button -->
+            <button (click)="refresh.emit()" [disabled]="isLoading" type="button" aria-label="Refresh"
+                class="inline-flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-2.5 py-2 text-xs font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2.5 sm:text-sm">
+                <svg [class.animate-spin]="isLoading" class="h-4 w-4" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span class="hidden sm:inline">Refresh</span>
             </button>
 
-            <button (click)="refresh.emit()" [disabled]="isLoading"
-                class="inline-flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-4 py-2.5 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50">
-                <span>↻</span>
-                <span>Refresh</span>
-            </button>
-
+            <!-- View Switcher (List / Grid) -->
             <div class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-dark p-1">
-                <button (click)="setViewMode.emit('list')" [class.bg-bridge-card]="viewMode === 'list'"
-                    class="rounded-full px-3 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                <button type="button" (click)="setViewMode.emit('list')"
+                    [ngClass]="viewMode === 'list' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-all duration-200 sm:px-3 sm:text-sm">
                     List
                 </button>
-                <button (click)="setViewMode.emit('grid')" [class.bg-bridge-card]="viewMode === 'grid'"
-                    class="rounded-full px-3 py-2 text-sm font-medium text-bridge-text-secondary transition hover:text-bridge-text">
+                <button type="button" (click)="setViewMode.emit('grid')"
+                    [ngClass]="viewMode === 'grid' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-all duration-200 sm:px-3 sm:text-sm">
                     Grid
                 </button>
             </div>
+
         </div>
     </div>
 
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <label class="block w-full md:max-w-md">
+    <!-- Search & Filter Controls -->
+    <div class="flex flex-col gap-2.5 sm:gap-3 md:flex-row md:items-center md:justify-between">
+
+        <!-- Search Bar -->
+        <div class="relative w-full md:max-w-md">
             <span class="sr-only">Search files</span>
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <svg class="h-4 w-4 text-bridge-muted-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
             <input type="text" [value]="searchTerm" (input)="searchTermChange.emit($any($event.target).value)"
                 placeholder="Search files..."
-                class="w-full rounded-full border border-bridge-border bg-bridge-dark px-3 py-2.5 text-sm text-bridge-text placeholder:text-bridge-muted-dark focus:border-bridge-primary/50 focus:outline-none" />
-        </label>
+                class="w-full rounded-full border border-bridge-border bg-bridge-dark pl-10 pr-4 py-2 text-sm text-bridge-text placeholder:text-bridge-muted-dark focus:border-bridge-primary/60 focus:outline-none focus:ring-1 focus:ring-bridge-primary/60 transition" />
+        </div>
 
-        <label class="flex items-center gap-2 text-sm text-bridge-text-secondary">
-            <span>Type</span>
+        <!-- Category Filter Dropdown -->
+        <label class="flex items-center gap-2.5 text-sm text-bridge-text-secondary">
+            <span class="font-medium">Type</span>
             <select [value]="fileTypeFilter" (change)="fileTypeFilterChange.emit($any($event.target).value)"
-                class="rounded-full border border-bridge-border bg-bridge-dark px-3 py-2 text-sm text-bridge-text focus:border-bridge-primary/50 focus:outline-none">
+                class="w-full rounded-full border border-bridge-border bg-bridge-dark px-4 py-2 text-sm text-bridge-text focus:border-bridge-primary/60 focus:outline-none focus:ring-1 focus:ring-bridge-primary/60 transition cursor-pointer md:w-auto">
                 <option value="all">All</option>
                 <option value="image">Images</option>
                 <option value="video">Videos</option>
@@ -82,5 +113,6 @@
                 <option value="file">Files</option>
             </select>
         </label>
+
     </div>
 </div>
