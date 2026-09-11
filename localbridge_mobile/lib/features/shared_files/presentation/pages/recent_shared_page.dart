@@ -41,6 +41,8 @@ class _RecentSharedPageView extends StatelessWidget {
       body: BlocBuilder<SharedFilesCubit, SharedFilesState>(
         builder: (context, state) {
           if (state.isLoading) {
+
+            //! --loadingState--
             return const Center(child: CircularProgressIndicator());
           }
 

@@ -1,4 +1,4 @@
-import '../repositories/phone_files_repository.dart';
+import '../../../phone_files/domain/repositories/phone_files_repository.dart';
 
 class GetWebConnectionStatus {
   final PhoneFilesRepository _repository;

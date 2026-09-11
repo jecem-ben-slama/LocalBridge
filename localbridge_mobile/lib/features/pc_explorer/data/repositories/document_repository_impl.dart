@@ -3,7 +3,6 @@ import 'dart:io';
 import '../../../../core/services/file_storage_service.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../datasources/doc_remote_source.dart';
-
 class DocumentRepositoryImpl implements DocumentRepository {
   final DocRemoteSource _remoteSource;
   final FileStorageService _fileStorage;

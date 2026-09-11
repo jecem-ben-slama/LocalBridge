@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../../domain/usecases/load_recent_shared_files.dart';
 import 'shared_files_state.dart';
 

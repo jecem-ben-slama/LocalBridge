@@ -1,20 +1,23 @@
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:video_player/video_player.dart';
-import 'package:localbridge_mobile/features/document_viewer/domain/entities/document.dart';
-import 'package:localbridge_mobile/core/services/pdf_service.dart';
+import 'dart:io';
+import 'package:localbridge_mobile/features/pc_explorer/domain/entities/document.dart';
 import 'package:localbridge_mobile/injection_container.dart';
-import 'package:localbridge_mobile/features/document_viewer/presentation/cubit/document_cubit.dart';
-import 'package:localbridge_mobile/features/document_viewer/presentation/widgets/document_explorer_header.dart';
-import 'package:localbridge_mobile/features/document_viewer/presentation/widgets/document_file_icon.dart';
-import 'package:localbridge_mobile/features/document_viewer/presentation/widgets/document_thumbnail.dart';
-import 'package:localbridge_mobile/features/document_viewer/presentation/widgets/document_transfer_progress.dart';
-import 'package:localbridge_mobile/features/document_viewer/presentation/widgets/empty_document_state.dart';
+// Widgets
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_explorer_header.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_file_icon.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_thumbnail.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_transfer_progress.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/empty_document_state.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/cubit/document_cubit.dart';
+// Package Services
+import 'package:localbridge_mobile/core/services/pdf_service.dart';
+import 'package:localbridge_mobile/core/services/transfer_service.dart';
+import 'package:file_picker/file_picker.dart';// XX
+import 'package:open_filex/open_filex.dart'; // XX
+import 'package:video_player/video_player.dart'; // XX
+// Shared
 import 'package:localbridge_mobile/core/errors/user_message.dart';
 import 'package:localbridge_mobile/core/feedback/app_feedback.dart';
-import 'package:localbridge_mobile/core/services/transfer_service.dart';
 
 class PcExplorerTab extends StatefulWidget {
   const PcExplorerTab({super.key});

@@ -1,7 +1,5 @@
 import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../../../connection/domain/usecases/check_pc_connectivity.dart';
 import '../../../phone_files/domain/usecases/disconnect_phone_session.dart';
 import '../../../phone_files/domain/usecases/get_phone_server_status.dart';
@@ -31,6 +29,13 @@ class NavbarCubit extends Cubit<NavbarState> {
   Future<void> _refreshStatus() async {
     try {
       final reachable = await _checkPcConnectivity();
+
+      // If PC connection is lost, automatically execute disconnect/logout sequence
+      if (!reachable) {
+        await disconnect();
+        return;
+      }
+
       emit(
         state.copyWith(
           pcReachable: reachable,
@@ -49,6 +54,10 @@ class NavbarCubit extends Cubit<NavbarState> {
 
   Future<void> disconnect() async {
     try {
+      // Stop checking connectivity once logout is initiated
+      _statusTimer?.cancel();
+      _statusTimer = null;
+
       await _disconnectPhoneSession();
       emit(state.copyWith(error: null));
     } catch (error) {
@@ -63,7 +72,9 @@ class NavbarCubit extends Cubit<NavbarState> {
 
   void setIndex(int index) => emit(state.copyWith(currentIndex: index));
 
-  void dispose() {
+  @override
+  Future<void> close() {
     _statusTimer?.cancel();
+    return super.close();
   }
 }

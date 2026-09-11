@@ -1,19 +1,20 @@
 import 'dart:async';
 import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import '../../../../core/services/transfer_service.dart';
+import 'phone_files_state.dart';
+//* Use Cases *
 import '../../domain/usecases/get_phone_server_status.dart';
-import '../../domain/usecases/get_web_connection_status.dart';
+import '../../../connection/domain/usecases/get_web_connection_status.dart';
 import '../../domain/usecases/send_file_to_pc.dart';
 import '../../domain/usecases/toggle_phone_server.dart';
 import '../../domain/usecases/watch_web_connection.dart';
-import 'phone_files_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+//! refactor to useCase ==> Repo
+import '../../../../core/services/transfer_service.dart';
+import 'package:file_picker/file_picker.dart';
 
 class PhoneFilesCubit extends Cubit<PhoneFilesState> {
-  final TransferService _transfers;
+  final TransferService _transfers;//!!!
+
   final GetPhoneServerStatus _getPhoneServerStatus;
   final GetWebConnectionStatus _getWebConnectionStatus;
   final TogglePhoneServer _togglePhoneServer;
@@ -31,7 +32,7 @@ class PhoneFilesCubit extends Cubit<PhoneFilesState> {
     this._watchWebConnection,
     this._sendFileToPc,
   ) : super(const PhoneFilesState());
-
+  //!!
   void start() {
     _transfers.addListener(_syncTransferState);
     _syncTransferState();
@@ -56,6 +57,7 @@ class PhoneFilesCubit extends Cubit<PhoneFilesState> {
       }
     });
   }
+  //!!
 
   void _syncTransferState() {
     final transferState = _transfers.state;
@@ -90,6 +92,7 @@ class PhoneFilesCubit extends Cubit<PhoneFilesState> {
       );
     }
   }
+  //!!
 
   Future<void> pickAndSend() async {
     if (_transfers.isBusy) return;
@@ -101,6 +104,7 @@ class PhoneFilesCubit extends Cubit<PhoneFilesState> {
           _sendFileToPc(file: File(picked.path!), onProgress: onProgress),
     );
   }
+  //!!
 
   void cancelTransfer() {
     _transfers.cancel();

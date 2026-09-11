@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/usecases/check_pc_connectivity.dart';
@@ -12,15 +11,23 @@ class ConnectionCubit extends Cubit<ConnectionState> {
   ConnectionCubit(this._checkPcConnectivity) : super(const ConnectionState());
 
   void start() {
-    _check();
     _timer?.cancel();
+    _check();
     _timer = Timer.periodic(const Duration(seconds: 10), (_) => _check());
   }
 
   Future<void> _check() async {
+    // 1. Guard against executing if already closed
+    if (isClosed) return;
+
     emit(state.copyWith(isLoading: true, error: null));
+
     try {
       final reachable = await _checkPcConnectivity();
+
+      // 2. Guard after asynchronous execution in case close() was called mid-request
+      if (isClosed) return;
+
       emit(
         state.copyWith(
           backendReachable: reachable,
@@ -29,6 +36,8 @@ class ConnectionCubit extends Cubit<ConnectionState> {
         ),
       );
     } catch (error) {
+      if (isClosed) return;
+
       emit(
         state.copyWith(
           isLoading: false,
@@ -40,7 +49,11 @@ class ConnectionCubit extends Cubit<ConnectionState> {
 
   Future<void> refresh() async => _check();
 
-  void dispose() {
+  @override
+  Future<void> close() {
+    // 3. Properly override close() to clean up active timers
     _timer?.cancel();
+    _timer = null;
+    return super.close();
   }
 }

@@ -1,7 +1,5 @@
 import 'dart:io';
-
 import 'package:path_provider/path_provider.dart';
-
 import '../../domain/entities/shared_file.dart';
 
 abstract interface class SharedFilesLocalSource {
@@ -25,6 +23,8 @@ class SharedFilesLocalSourceImpl implements SharedFilesLocalSource {
           name: entity.uri.pathSegments.last,
           path: entity.path,
           modified: modified,
+          //size ??
+          size: entity.readAsBytes.toString()
         ),
       );
     }
