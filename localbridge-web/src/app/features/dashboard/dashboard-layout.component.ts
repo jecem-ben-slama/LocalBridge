@@ -1,9 +1,8 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { catchError, interval, of, Subscription, switchMap } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/core/services/auth.service';
-import { QrPairingComponent } from '../qr-pairing/qr-pairing.component';
-import { SidebarComponent } from '../sidebar/sidebar.component';
+
 import { FileExplorerComponent } from '../file-explorer/file-explorer.component';
 import { ConnectionComponent } from '../connection/connection.component';
 import { RecentSharedComponent } from '../recent-shared/recent-shared.component';
@@ -14,8 +13,7 @@ import { FileService } from '../../core/services/file.service';
   standalone: true,
   imports: [
     CommonModule,
-    SidebarComponent,
-    QrPairingComponent,
+  
     FileExplorerComponent,
     ConnectionComponent,
     RecentSharedComponent,
@@ -26,6 +24,7 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   readonly fileService = inject(FileService);
   private statusSubscription?: Subscription;
+
   currentTab: 'files' | 'recent' | 'connection' | 'clipboard' = 'files';
   backendLive = false;
   phoneConnected = false;
@@ -33,9 +32,16 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
   phoneServerChecking = false;
 
   ngOnInit() {
-    this.refreshStatus();
-    this.statusSubscription = interval(10000).subscribe(() =>
-      this.refreshStatus()
+    // Mirror the service's single shared poller rather than running our own
+    // interval - two components independently polling the same shared
+    // FileService state was the source of the stuck "disconnected" bug.
+    this.statusSubscription = this.fileService.connectionStatus$.subscribe(
+      (status) => {
+        this.backendLive = status.backendLive;
+        this.phoneConnected = status.phoneConnected;
+        this.phoneServerLive = status.phoneServerLive;
+        this.phoneServerChecking = status.checking;
+      }
     );
   }
 
@@ -43,33 +49,9 @@ export class DashboardLayoutComponent implements OnInit, OnDestroy {
     this.statusSubscription?.unsubscribe();
   }
 
+  /** Bound to the ↻ button in the template. */
   refreshStatus() {
-    if (this.phoneServerChecking) return;
-    this.phoneServerChecking = true;
-    this.fileService.refreshPhoneServer().subscribe({
-      next: (status) => {
-        this.backendLive = true;
-        this.phoneConnected = status.connected;
-        if (!status.phoneServerUrl) {
-          this.phoneServerLive = false;
-          this.phoneServerChecking = false;
-          return;
-        }
-        this.fileService
-          .heartbeatPhoneServer()
-          .pipe(catchError(() => of(null)))
-          .subscribe((heartbeat) => {
-            this.phoneServerLive = heartbeat !== null;
-            this.phoneServerChecking = false;
-          });
-      },
-      error: () => {
-        this.backendLive = false;
-        this.phoneConnected = false;
-        this.phoneServerLive = false;
-        this.phoneServerChecking = false;
-      },
-    });
+    this.fileService.checkNow();
   }
 
   logout() {

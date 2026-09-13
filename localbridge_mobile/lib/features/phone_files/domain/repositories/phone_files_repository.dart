@@ -3,19 +3,9 @@ import 'dart:io';
 import '../services/phone_server.dart';
 
 abstract interface class PhoneFilesRepository {
-  Future<void> connect();
-
-  Future<void> disconnect();
-
-  bool get isConnected;
-
-  Future<bool> checkConnection();
-
-  bool get isServerRunning;
-
-  bool get isWebConnected;
-
-  Stream<bool> get webConnectionChanges;
+  /// Stream that emits the current running state immediately upon subscription
+  /// and updates in real-time whenever the server starts or stops.
+  Stream<bool> get serverStatusStream;
 
   Future<PhoneServerInfo> startServer();
 

@@ -1,65 +1,48 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../connection/domain/usecases/check_pc_connectivity.dart';
-import '../../../phone_files/domain/usecases/disconnect_phone_session.dart';
-import '../../../phone_files/domain/usecases/get_phone_server_status.dart';
+import '../../../connection/domain/usecases/disconnect_session.dart';
+import '../../../phone_files/domain/usecases/get_phone_server_status_stream.dart';
 import 'navbar_state.dart';
 
 class NavbarCubit extends Cubit<NavbarState> {
   final CheckPcConnectivity _checkPcConnectivity;
-  final GetPhoneServerStatus _getPhoneServerStatus;
-  final DisconnectPhoneSession _disconnectPhoneSession;
-  Timer? _statusTimer;
+  final GetPhoneServerStatusStream _getPhoneServerStatusStream;
+  final DisconnectSession _disconnectPhoneSession;
+  Timer? _timer;
 
   NavbarCubit(
     this._checkPcConnectivity,
-    this._getPhoneServerStatus,
+    this._getPhoneServerStatusStream,
     this._disconnectPhoneSession,
   ) : super(const NavbarState());
 
   void start() {
-    _refreshStatus();
-    _statusTimer?.cancel();
-    _statusTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _refreshStatus(),
-    );
+    _getPhoneServerStatusStream().listen((isRunning) {
+      if (!isClosed) emit(state.copyWith(isServerRunning: isRunning));
+    });
+
+    _timer?.cancel();
+    _checkPc();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _checkPc());
   }
 
-  Future<void> _refreshStatus() async {
+  Future<void> _checkPc() async {
+    if (isClosed) return;
     try {
       final reachable = await _checkPcConnectivity();
-
-      // If PC connection is lost, automatically execute disconnect/logout sequence
-      if (!reachable) {
-        await disconnect();
-        return;
-      }
-
-      emit(
-        state.copyWith(
-          pcReachable: reachable,
-          isServerRunning: _getPhoneServerStatus(),
-          error: null,
-        ),
-      );
-    } catch (error) {
-      emit(
-        state.copyWith(
-          error: error is String ? error : 'Connection status unavailable.',
-        ),
-      );
+      if (!isClosed) emit(state.copyWith(pcReachable: reachable, error: null));
+    } catch (_) {
+      if (!isClosed) emit(state.copyWith(pcReachable: false));
     }
   }
 
   Future<void> disconnect() async {
     try {
-      // Stop checking connectivity once logout is initiated
-      _statusTimer?.cancel();
-      _statusTimer = null;
-
+      _timer?.cancel();
       await _disconnectPhoneSession();
-      emit(state.copyWith(error: null));
+      emit(state.copyWith(pcReachable: false));
     } catch (error) {
       emit(
         state.copyWith(
@@ -74,7 +57,7 @@ class NavbarCubit extends Cubit<NavbarState> {
 
   @override
   Future<void> close() {
-    _statusTimer?.cancel();
+    _timer?.cancel();
     return super.close();
   }
 }

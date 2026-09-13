@@ -8,7 +8,15 @@ class ApiService {
   String? _sessionId;
 
   ApiService({Dio? dio})
-    : dio = dio ?? Dio(BaseOptions(baseUrl: AppConstants.defaultApiUrl)) {
+    : dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: AppConstants.defaultApiUrl,
+              connectTimeout: const Duration(seconds: 5),
+              receiveTimeout: const Duration(seconds: 10),
+            ),
+          ) {
     // Add interceptor to include session ID in all requests
     this.dio.interceptors.add(
       InterceptorsWrapper(

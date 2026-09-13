@@ -1,6 +1,12 @@
 import 'package:get_it/get_it.dart';
+import 'package:localbridge_mobile/features/connection/data/datasource/connection_remote_source.dart';
 import 'package:localbridge_mobile/features/pc_explorer/domain/usecases/download_file.dart';
 import 'package:localbridge_mobile/features/pc_explorer/domain/usecases/upload_file.dart';
+import 'package:localbridge_mobile/features/phone_files/data/repositories/transfer_repository_impl.dart';
+import 'package:localbridge_mobile/features/phone_files/domain/repositories/transfer_repository.dart';
+import 'package:localbridge_mobile/features/phone_files/domain/usecases/cancel_transfer.dart';
+import 'package:localbridge_mobile/features/phone_files/domain/usecases/start_file_upload.dart';
+import 'package:localbridge_mobile/features/phone_files/domain/usecases/watch_transfer_status.dart';
 
 // Global Core & Infrastructure Service Packages
 import 'core/network/api_service.dart';
@@ -16,6 +22,8 @@ import 'infrastructure/services/pdf_service_adapter.dart';
 import 'features/connection/domain/repositories/connection_repository.dart';
 import 'features/connection/data/repositories/connection_repository_impl.dart';
 import 'features/connection/domain/usecases/check_pc_connectivity.dart';
+import 'features/connection/domain/usecases/watch_web_connection.dart';
+import 'features/connection/domain/usecases/disconnect_session.dart';
 import 'features/connection/presentation/cubit/connection_cubit.dart';
 import 'features/connection/presentation/cubit/qr_scanner_cubit.dart';
 
@@ -40,13 +48,12 @@ import 'features/phone_files/data/repositories/phone_files_repository_impl.dart'
 import 'features/phone_files/data/datasources/phone_files_remote_source.dart';
 import 'features/phone_files/domain/services/phone_server.dart';
 import 'features/phone_files/infrastructure/phone_http_server.dart';
-import 'features/phone_files/domain/usecases/disconnect_phone_session.dart';
-import 'features/phone_files/domain/usecases/get_phone_server_status.dart';
-import 'features/connection/domain/usecases/get_web_connection_status.dart';
+import 'features/phone_files/domain/usecases/get_phone_server_status_stream.dart';
 import 'features/phone_files/domain/usecases/send_file_to_pc.dart';
 import 'features/phone_files/domain/usecases/toggle_phone_server.dart';
-import 'features/phone_files/domain/usecases/watch_web_connection.dart';
 import 'features/phone_files/presentation/cubit/phone_files_cubit.dart';
+
+// Feature: Transfer Modules
 
 // Feature: Global Navigation Modules
 import 'features/navbar/presentation/cubit/navbar_cubit.dart';
@@ -64,7 +71,7 @@ void setupDependencies() {
   );
   locator.registerLazySingleton<PhoneServer>(
     PhoneHttpServer.new,
-  ); // Moved up to satisfy sources!
+  ); // Shared device service — both connection and phone_files depend on it.
   locator.registerLazySingleton<FileStorageService>(FileStorageServiceImpl.new);
   locator.registerLazySingleton<PdfService>(PdfServiceAdapter.new);
   locator.registerLazySingleton<SharedFilesLocalSource>(
@@ -90,8 +97,15 @@ void setupDependencies() {
   locator.registerLazySingleton<PhoneFilesRemoteSource>(
     () => PhoneFilesRemoteSourceImpl(
       locator<ApiService>(),
-      locator<PhoneServer>(), // Resolves perfectly now!
+      locator<PhoneServer>(),
       locator<BackgroundFileTransferService>(),
+    ),
+  );
+
+  locator.registerLazySingleton<ConnectionRemoteSource>(
+    () => ConnectionRemoteSourceImpl(
+      locator<ApiService>(),
+      locator<PhoneServer>(),
     ),
   );
 
@@ -101,7 +115,11 @@ void setupDependencies() {
   );
 
   locator.registerLazySingleton<ConnectionRepository>(
-    () => ConnectionRepositoryImpl(locator<PhoneFilesRepository>()),
+    () => ConnectionRepositoryImpl(locator<ConnectionRemoteSource>()),
+  );
+
+  locator.registerLazySingleton<TransferRepository>(
+    () => TransferRepositoryImpl(locator<TransferService>()),
   );
 
   locator.registerLazySingleton<SharedFilesRepository>(
@@ -122,20 +140,39 @@ void setupDependencies() {
   locator.registerLazySingleton(
     () => LoadDirectory(locator<DocumentRepository>()),
   );
+  // NOTE: pre-existing gap, unrelated to the connection/phone_files split —
+  // these were imported and used by DocumentCubit below but never
+  // registered. Verify the constructor shape against the actual
+  // upload_file.dart / download_file.dart files; this assumes they take a
+  // single DocumentRepository, matching FetchDocumentData/LoadDirectory.
+  locator.registerLazySingleton(
+    () => UploadFile(locator<DocumentRepository>()),
+  );
+  locator.registerLazySingleton(
+    () => DownloadFile(locator<DocumentRepository>()),
+  );
   locator.registerLazySingleton(
     () => LoadRecentSharedFiles(locator<SharedFilesRepository>()),
   );
+
+  // Connection use cases
   locator.registerLazySingleton(
-    () => CheckPcConnectivity(locator<PhoneFilesRepository>()),
+    () => CheckPcConnectivity(locator<ConnectionRepository>()),
+  );
+
+  locator.registerLazySingleton(
+    () => WatchWebConnection(locator<ConnectionRepository>()),
   );
   locator.registerLazySingleton(
-    () => DisconnectPhoneSession(locator<PhoneFilesRepository>()),
+    () => DisconnectSession(
+      locator<ConnectionRepository>(),
+      locator<PhoneFilesRepository>(),
+    ),
   );
+
+  // Phone files use cases
   locator.registerLazySingleton(
-    () => GetPhoneServerStatus(locator<PhoneFilesRepository>()),
-  );
-  locator.registerLazySingleton(
-    () => GetWebConnectionStatus(locator<PhoneFilesRepository>()),
+    () => GetPhoneServerStatusStream(locator<PhoneFilesRepository>()),
   );
   locator.registerLazySingleton(
     () => SendFileToPc(locator<PhoneFilesRepository>()),
@@ -143,8 +180,16 @@ void setupDependencies() {
   locator.registerLazySingleton(
     () => TogglePhoneServer(locator<PhoneFilesRepository>()),
   );
+
+  // Transfer use cases
   locator.registerLazySingleton(
-    () => WatchWebConnection(locator<PhoneFilesRepository>()),
+    () => StartFileUpload(locator<TransferRepository>()),
+  );
+  locator.registerLazySingleton(
+    () => CancelTransfer(locator<TransferRepository>()),
+  );
+  locator.registerLazySingleton(
+    () => WatchTransferStatus(locator<TransferRepository>()),
   );
 
   // ─── STEP 6: PRESENTATION LAYER CONTROLLERS (BLOC / CUBIT FACTORIES) ───
@@ -152,7 +197,10 @@ void setupDependencies() {
     () => SharedFilesCubit(locator<LoadRecentSharedFiles>()),
   );
   locator.registerFactory(
-    () => ConnectionCubit(locator<CheckPcConnectivity>()),
+    () => ConnectionCubit(
+      locator<CheckPcConnectivity>(),
+      locator<WatchWebConnection>(),
+    ),
   );
   locator.registerFactory(
     () => QrScannerCubit(locator<ConnectionRepository>()),
@@ -170,19 +218,19 @@ void setupDependencies() {
   locator.registerFactory(
     () => NavbarCubit(
       locator<CheckPcConnectivity>(),
-      locator<GetPhoneServerStatus>(),
-      locator<DisconnectPhoneSession>(),
+      locator<GetPhoneServerStatusStream>(),
+      locator<DisconnectSession>(),
     ),
   );
 
   locator.registerFactory(
     () => PhoneFilesCubit(
-      locator<TransferService>(),
-      locator<GetPhoneServerStatus>(),
-      locator<GetWebConnectionStatus>(),
+      locator<GetPhoneServerStatusStream>(),
       locator<TogglePhoneServer>(),
-      locator<WatchWebConnection>(),
       locator<SendFileToPc>(),
+      locator<StartFileUpload>(),
+      locator<CancelTransfer>(),
+      locator<WatchTransferStatus>(),
     ),
   );
 }

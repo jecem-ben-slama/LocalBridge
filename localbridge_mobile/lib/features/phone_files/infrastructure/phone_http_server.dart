@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-
 import '../domain/services/phone_server.dart';
 
 class _ResponseStreamException implements Exception {
@@ -112,9 +110,14 @@ class PhoneHttpServer implements PhoneServer {
         return;
       }
 
+      // Any authorized request is proof of a live peer, not just /health.
+      // Previously only /health touched _lastHeartbeat, so active browsing/
+      // downloading without an explicit health check could still trip the
+      // peer timeout below and report "disconnected" mid-session.
+      _lastHeartbeat = DateTime.now();
+      _setPeerConnected(true);
+
       if (request.uri.path == '/health') {
-        _lastHeartbeat = DateTime.now();
-        _setPeerConnected(true);
         await _sendJson(request.response, HttpStatus.ok, {'ok': true});
         return;
       }
@@ -187,7 +190,6 @@ class PhoneHttpServer implements PhoneServer {
     if (!await directory.exists()) {
       throw StateError('Directory does not exist');
     }
-
     final files = <Map<String, Object>>[];
     await for (final entity in directory.list(followLinks: false)) {
       final name = entity.path.split(Platform.pathSeparator).last;
@@ -196,6 +198,7 @@ class PhoneHttpServer implements PhoneServer {
       files.add({
         'name': name,
         'path': _relativePath(entity.path),
+        'size': type.size,
         'isDirectory': type.type == FileSystemEntityType.directory,
       });
     }

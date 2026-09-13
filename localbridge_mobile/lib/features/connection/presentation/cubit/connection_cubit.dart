@@ -2,18 +2,28 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/usecases/check_pc_connectivity.dart';
+import '../../domain/usecases/watch_web_connection.dart';
 import 'connection_state.dart';
 
 class ConnectionCubit extends Cubit<ConnectionState> {
   final CheckPcConnectivity _checkPcConnectivity;
+  final WatchWebConnection _watchWebConnection;
   Timer? _timer;
+  StreamSubscription<bool>? _webConnectionSubscription;
 
-  ConnectionCubit(this._checkPcConnectivity) : super(const ConnectionState());
+  ConnectionCubit(this._checkPcConnectivity, this._watchWebConnection)
+    : super(const ConnectionState());
 
   void start() {
     _timer?.cancel();
     _check();
     _timer = Timer.periodic(const Duration(seconds: 10), (_) => _check());
+
+    _webConnectionSubscription?.cancel();
+    _webConnectionSubscription = _watchWebConnection().listen((connected) {
+      if (isClosed) return;
+      emit(state.copyWith(isWebConnected: connected));
+    });
   }
 
   Future<void> _check() async {
@@ -51,9 +61,11 @@ class ConnectionCubit extends Cubit<ConnectionState> {
 
   @override
   Future<void> close() {
-    // 3. Properly override close() to clean up active timers
+    // 3. Properly override close() to clean up active timers and streams
     _timer?.cancel();
     _timer = null;
+    _webConnectionSubscription?.cancel();
+    _webConnectionSubscription = null;
     return super.close();
   }
 }

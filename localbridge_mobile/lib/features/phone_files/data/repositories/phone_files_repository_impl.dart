@@ -1,40 +1,34 @@
+import 'dart:async';
 import 'dart:io';
 
 import '../../domain/repositories/phone_files_repository.dart';
-import '../datasources/phone_files_remote_source.dart';
 import '../../domain/services/phone_server.dart';
+import '../datasources/phone_files_remote_source.dart';
 
 class PhoneFilesRepositoryImpl implements PhoneFilesRepository {
   final PhoneFilesRemoteSource _remoteSource;
+  final StreamController<bool> _statusController =
+      StreamController<bool>.broadcast();
 
   PhoneFilesRepositoryImpl(this._remoteSource);
 
   @override
-  Future<void> connect() => _remoteSource.connect();
 
   @override
-  Future<void> disconnect() => _remoteSource.disconnect();
+  Stream<bool> get serverStatusStream => _statusController.stream;
 
   @override
-  bool get isConnected => _remoteSource.isConnected;
+  Future<PhoneServerInfo> startServer() async {
+    final info = await _remoteSource.startServer();
+    _statusController.add(true);
+    return info;
+  }
 
   @override
-  Future<bool> checkConnection() => _remoteSource.checkConnection();
-
-  @override
-  bool get isServerRunning => _remoteSource.isServerRunning;
-
-  @override
-  bool get isWebConnected => _remoteSource.isWebConnected;
-
-  @override
-  Stream<bool> get webConnectionChanges => _remoteSource.webConnectionChanges;
-
-  @override
-  Future<PhoneServerInfo> startServer() => _remoteSource.startServer();
-
-  @override
-  Future<void> stopServer() => _remoteSource.stopServer();
+  Future<void> stopServer() async {
+    await _remoteSource.stopServer();
+    _statusController.add(false);
+  }
 
   @override
   Future<void> sendToPc({

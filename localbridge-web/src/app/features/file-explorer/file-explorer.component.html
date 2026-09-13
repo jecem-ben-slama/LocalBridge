@@ -59,12 +59,12 @@
 
         <app-file-list *ngIf="filteredFiles.length > 0 && viewMode === 'list'" [files]="filteredFiles" [source]="source"
             [transferBusy]="fileService.transferBusy" (openNode)="openNode($event)"
-            (downloadFile)="downloadSelectedFile($event)">
+            (downloadFile)="downloadSelectedFile($event)" (sendToPhone)="sendToPhone($event)">
         </app-file-list>
 
         <app-file-grid *ngIf="filteredFiles.length > 0 && viewMode === 'grid'" [files]="filteredFiles" [source]="source"
             [transferBusy]="fileService.transferBusy" (openNode)="openNode($event)"
-            (downloadFile)="downloadSelectedFile($event)">
+            (downloadFile)="downloadSelectedFile($event)" (sendToPhone)="sendToPhone($event)">
         </app-file-grid>
     </div>
 </div>
@@ -78,7 +78,13 @@
             class="flex items-center justify-between gap-3 border-b border-bridge-border px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
             <h2 class="min-w-0 truncate text-sm font-semibold text-bridge-text">{{ previewFile.name }}</h2>
             <div class="flex shrink-0 items-center gap-2">
-                <button type="button" (click)="downloadSelectedFile(previewFile)" [disabled]="fileService.transferBusy"
+                <button *ngIf="source === 'pc'" type="button" (click)="sendToPhone(previewFile)"
+                    [disabled]="fileService.transferBusy"
+                    class="rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
+                    Send
+                </button>
+                <button *ngIf="source === 'phone'" type="button" (click)="downloadSelectedFile(previewFile)"
+                    [disabled]="fileService.transferBusy"
                     class="rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
                     Download
                 </button>
@@ -86,6 +92,7 @@
                     class="px-2 py-1 text-xl text-bridge-text-secondary hover:text-bridge-text">×</button>
             </div>
         </header>
+
 
         <div class="flex h-[calc(100%-49px)] items-center justify-center bg-bridge-dark p-3 sm:h-[70vh] sm:p-4">
             <img *ngIf="previewKind === 'image'" [src]="previewUrl" [alt]="previewFile.name"

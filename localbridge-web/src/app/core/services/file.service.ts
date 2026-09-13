@@ -9,9 +9,15 @@ import {
 } from '@angular/common/http';
 import {
   Observable,
-  catchError,
   BehaviorSubject,
+  Subject,
   Subscription,
+  catchError,
+  interval,
+  map,
+  merge,
+  of,
+  startWith,
   switchMap,
   tap,
   throwError,
@@ -20,14 +26,27 @@ import {
 import { ApiResponse } from 'src/app/model/apiresponse';
 import { FileNode } from 'src/app/model/filenode';
 
+export interface ConnectionStatus {
+  backendLive: boolean;
+  phoneConnected: boolean;
+  phoneServerLive: boolean;
+  phoneServerUrl: string | null;
+  checking: boolean;
+  lastChecked: Date | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class FileService {
+  private static readonly MAX_CONSECUTIVE_HEARTBEAT_FAILURES = 3;
+
   private http = inject(HttpClient);
   private apiUrl = '/api/files/list';
   private phoneServerUrl: string | null = null;
   private phoneServerToken: string | null = null;
+  private heartbeatFailureCount = 0;
+
   private transferSubscription?: Subscription;
   private readonly transferSubject = new BehaviorSubject<TransferState>({
     active: false,
@@ -39,12 +58,95 @@ export class FileService {
   });
   readonly transferState$ = this.transferSubject.asObservable();
 
+  // Single, centralized connection poller. Components subscribe to this
+  // instead of each running their own interval against the shared service
+  // state - that duplication was what caused the checking-flag race.
+  private readonly manualCheck$ = new Subject<void>();
+  private readonly statusSubject = new BehaviorSubject<ConnectionStatus>({
+    backendLive: false,
+    phoneConnected: false,
+    phoneServerLive: false,
+    phoneServerUrl: null,
+    checking: false,
+    lastChecked: null,
+  });
+  readonly connectionStatus$ = this.statusSubject.asObservable();
+
+  constructor() {
+    merge(interval(10000).pipe(startWith(0)), this.manualCheck$)
+      .pipe(
+        tap(() => this.patchStatus({ checking: true })),
+        switchMap(() => this.pollOnce())
+      )
+      .subscribe();
+  }
+
+  /** Trigger an immediate connection check (e.g. from a manual refresh button). */
+  checkNow(): void {
+    this.manualCheck$.next();
+  }
+
   get transferState(): TransferState {
     return this.transferSubject.value;
   }
 
   get transferBusy(): boolean {
     return this.transferState.active;
+  }
+
+  private pollOnce(): Observable<void> {
+    return this.refreshPhoneServer().pipe(
+      switchMap((status) => {
+        if (!status.phoneServerUrl) {
+          this.patchStatus({
+            backendLive: true,
+            phoneConnected: status.connected,
+            phoneServerLive: false,
+            phoneServerUrl: null,
+            checking: false,
+            lastChecked: new Date(),
+          });
+          return of(void 0);
+        }
+        return this.heartbeatPhoneServer().pipe(
+          map((heartbeat) => {
+            this.patchStatus({
+              backendLive: true,
+              phoneConnected: status.connected,
+              phoneServerLive: heartbeat !== null,
+              phoneServerUrl: status.phoneServerUrl,
+              checking: false,
+              lastChecked: new Date(),
+            });
+          }),
+          catchError(() => {
+            this.patchStatus({
+              backendLive: true,
+              phoneConnected: status.connected,
+              phoneServerLive: false,
+              phoneServerUrl: status.phoneServerUrl,
+              checking: false,
+              lastChecked: new Date(),
+            });
+            return of(void 0);
+          })
+        );
+      }),
+      catchError(() => {
+        this.patchStatus({
+          backendLive: false,
+          phoneConnected: false,
+          phoneServerLive: false,
+          checking: false,
+          lastChecked: new Date(),
+        });
+        return of(void 0);
+      })
+    );
+  }
+
+  private patchStatus(patch: Partial<ConnectionStatus>): void {
+    this.statusSubject.next({ ...this.statusSubject.value, ...patch });
   }
 
   refreshPhoneServer(): Observable<{
@@ -67,17 +169,26 @@ export class FileService {
   }
 
   heartbeatPhoneServer(): Observable<unknown> {
-    if (!this.phoneServerUrl)
-      return new Observable((subscriber) => subscriber.complete());
+    if (!this.phoneServerUrl) return of(null); // emit, then complete - never complete silently
     return this.http
       .get(`${this.phoneServerUrl}/health`, {
         params: this.phoneParams(),
       })
       .pipe(
-        tap(() => undefined),
+        tap(() => {
+          this.heartbeatFailureCount = 0;
+        }),
         catchError((error) => {
-          this.phoneServerUrl = null;
-          this.phoneServerToken = null;
+          this.heartbeatFailureCount++;
+          // Only give up on the phone after a few consecutive misses, so a
+          // single dropped packet doesn't permanently wipe the connection.
+          if (
+            this.heartbeatFailureCount >=
+            FileService.MAX_CONSECUTIVE_HEARTBEAT_FAILURES
+          ) {
+            this.phoneServerUrl = null;
+            this.phoneServerToken = null;
+          }
           return throwError(() => error);
         })
       );

@@ -18,8 +18,16 @@
             {{ file.isDirectory ? 'Folder' : formatSize(file.size) }}
         </span>
 
-        <button *ngIf="!file.isDirectory" type="button" (click)="$event.stopPropagation(); downloadFile.emit(file)"
-            [disabled]="transferBusy" [attr.aria-label]="'Download ' + file.name"
+        <button *ngIf="!file.isDirectory && source === 'pc'" type="button"
+            (click)="$event.stopPropagation(); sendToPhone.emit(file)" [disabled]="transferBusy"
+            [attr.aria-label]="'Send ' + file.name + ' to phone'"
+            class="mt-2 rounded-full border border-bridge-border bg-bridge-card px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-[11px] sm:tracking-[0.18em]">
+            Send
+        </button>
+
+        <button *ngIf="!file.isDirectory && source === 'phone'" type="button"
+            (click)="$event.stopPropagation(); downloadFile.emit(file)" [disabled]="transferBusy"
+            [attr.aria-label]="'Download ' + file.name"
             class="mt-2 rounded-full border border-bridge-border bg-bridge-card px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-[11px] sm:tracking-[0.18em]">
             Save
         </button>

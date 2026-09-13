@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/shared/widgets/app_status_card.dart';
 import '../../../../injection_container.dart';
-import '../../../connection/presentation/cubit/connection_cubit.dart';
-import '../../../connection/presentation/cubit/connection_state.dart'
-    as app_connection_state;
+import '../../../phone_files/domain/usecases/get_phone_server_status_stream.dart';
+import '../cubit/connection_cubit.dart';
+import '../cubit/connection_state.dart' as app_connection_state;
 
 class ConnectionPage extends StatelessWidget {
   const ConnectionPage({super.key});
@@ -19,8 +20,34 @@ class ConnectionPage extends StatelessWidget {
   }
 }
 
-class _ConnectionPageView extends StatelessWidget {
+class _ConnectionPageView extends StatefulWidget {
   const _ConnectionPageView();
+
+  @override
+  State<_ConnectionPageView> createState() => _ConnectionPageViewState();
+}
+
+class _ConnectionPageViewState extends State<_ConnectionPageView> {
+  final _getPhoneServerStatusStream = locator<GetPhoneServerStatusStream>();
+  StreamSubscription<bool>? _serverStatusSubscription;
+  bool _isServerRunning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _serverStatusSubscription = _getPhoneServerStatusStream().listen((
+      isRunning,
+    ) {
+      if (!mounted) return;
+      setState(() => _isServerRunning = isRunning);
+    });
+  }
+
+  @override
+  void dispose() {
+    _serverStatusSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,11 +88,9 @@ class _ConnectionPageView extends StatelessWidget {
               const SizedBox(height: 12),
               AppStatusCard(
                 label: 'Phone server',
-                value: state.backendReachable ? 'Running' : 'Stopped',
+                value: _isServerRunning ? 'Running' : 'Stopped',
                 icon: Icons.phone_android,
-                color: state.backendReachable
-                    ? Colors.greenAccent
-                    : Colors.white54,
+                color: _isServerRunning ? Colors.greenAccent : Colors.white54,
               ),
               const SizedBox(height: 20),
               Text(

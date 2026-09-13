@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { interval, Subscription, catchError, of } from 'rxjs';
+import { Subscription } from 'rxjs';
 
 import { FileService } from '../../core/services/file.service';
 import { QrPairingComponent } from '../qr-pairing/qr-pairing.component';
@@ -22,7 +22,7 @@ import { ConnectionStatusCardComponent } from './components/connection-status-ca
 })
 export class ConnectionComponent implements OnInit, OnDestroy {
   private readonly fileService = inject(FileService);
-  private refreshSubscription?: Subscription;
+  private statusSubscription?: Subscription;
 
   backendLive = false;
   phoneConnected = false;
@@ -32,46 +32,26 @@ export class ConnectionComponent implements OnInit, OnDestroy {
   checking = false;
 
   ngOnInit() {
-    this.checkNow();
-    this.refreshSubscription = interval(10000).subscribe(() => this.checkNow());
+    // Subscribe to the shared poller instead of running a second independent
+    // interval - see FileService.connectionStatus$ for the polling logic.
+    this.statusSubscription = this.fileService.connectionStatus$.subscribe(
+      (status) => {
+        this.backendLive = status.backendLive;
+        this.phoneConnected = status.phoneConnected;
+        this.phoneServerLive = status.phoneServerLive;
+        this.phoneServerUrl = status.phoneServerUrl;
+        this.lastChecked = status.lastChecked;
+        this.checking = status.checking;
+      }
+    );
   }
 
   ngOnDestroy() {
-    this.refreshSubscription?.unsubscribe();
+    this.statusSubscription?.unsubscribe();
   }
 
+  /** Manual "refresh now" button in the template. */
   checkNow() {
-    if (this.checking) return;
-    this.checking = true;
-    this.fileService.refreshPhoneServer().subscribe({
-      next: (status) => {
-        this.backendLive = true;
-        this.phoneConnected = status.connected;
-        this.phoneServerUrl = status.phoneServerUrl;
-        if (!status.phoneServerUrl) {
-          this.phoneServerLive = false;
-          this.finishCheck();
-          return;
-        }
-        this.fileService
-          .heartbeatPhoneServer()
-          .pipe(catchError(() => of(null)))
-          .subscribe((heartbeat) => {
-            this.phoneServerLive = heartbeat !== null;
-            this.finishCheck();
-          });
-      },
-      error: () => {
-        this.backendLive = false;
-        this.phoneConnected = false;
-        this.phoneServerLive = false;
-        this.finishCheck();
-      },
-    });
-  }
-
-  private finishCheck() {
-    this.lastChecked = new Date();
-    this.checking = false;
+    this.fileService.checkNow();
   }
 }

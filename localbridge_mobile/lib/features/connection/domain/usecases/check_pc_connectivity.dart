@@ -1,13 +1,13 @@
-import '../../../phone_files/domain/repositories/phone_files_repository.dart';
+import '../repositories/connection_repository.dart';
 
 class CheckPcConnectivity {
-  final PhoneFilesRepository _phoneFilesRepository;
+  final ConnectionRepository _repository;
 
-  CheckPcConnectivity(this._phoneFilesRepository);
+  CheckPcConnectivity(this._repository);
 
   Future<bool> call() async {
     try {
-      return await _phoneFilesRepository.checkConnection();
+      return await _repository.checkConnection();
     } catch (_) {
       return false;
     }

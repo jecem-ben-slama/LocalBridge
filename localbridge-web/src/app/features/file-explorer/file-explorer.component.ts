@@ -1,4 +1,11 @@
-import { Component, inject, Input, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  HostListener,
+  inject,
+  Input,
+  OnDestroy,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { interval, Subscription, switchMap, catchError, of } from 'rxjs';
@@ -201,6 +208,37 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     if (!this.fileService.startDownload(node.path, this.source)) return;
   }
 
+  /**
+   * Sends an already-listed PC file into the phone's LocalBridge folder,
+   * by fetching it as a blob and reusing the same startUpload() pipeline
+   * that uploadToPhone() uses (progress/toast/refresh all come for free).
+   */
+  async sendToPhone(node: FileNode, event?: MouseEvent) {
+    event?.stopPropagation();
+    if (this.fileService.transferBusy) return;
+
+    // Same target logic as uploadToPhone:
+    // browsing PC -> drop in phone's LocalBridge folder
+    // browsing Phone -> drop in current phone folder
+    const targetPath = this.source === 'pc' ? 'LocalBridge' : this.currentPath;
+
+    try {
+      const url = this.fileService.getDownloadUrl(node.path, this.source);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Could not read the file to send.');
+      const blob = await response.blob();
+      const file = new File([blob], node.name, {
+        type: blob.type || 'application/octet-stream',
+      });
+      this.fileService.startUpload(targetPath, file, 'phone');
+    } catch (error: any) {
+      this.showToast(
+        error?.message || 'Could not read the file to send.',
+        'error'
+      );
+    }
+  }
+
   private showToast(message: string, type: 'success' | 'error' | 'info') {
     this.toastMessage = message;
     this.toastType = type;
@@ -240,7 +278,12 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.previewFile = null;
     this.previewUrl = null;
   }
-
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.previewFile) {
+      this.closePreview();
+    }
+  }
   selectSource(source: 'pc' | 'phone') {
     if (this.source === source) return;
     this.source = source;

@@ -17,6 +17,7 @@ export class FileGridComponent {
   @Input() transferBusy = false;
   @Output() openNode = new EventEmitter<FileNode>();
   @Output() downloadFile = new EventEmitter<FileNode>();
+  @Output() sendToPhone = new EventEmitter<FileNode>();
 
   isImageFile(fileName: string): boolean {
     const ext = fileName.split('.').pop()?.toLowerCase();
