@@ -3,6 +3,7 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
 
 import { FileService } from '../../core/services/file.service';
+import { SessionService } from '../../core/services/session.service';
 import { QrPairingComponent } from '../qr-pairing/qr-pairing.component';
 import { ConnectionEndpointCardComponent } from './components/connection-endpoint-card/connection-endpoint-card.component';
 import { ConnectionHeaderComponent } from './components/connection-header/connection-header.component';
@@ -22,6 +23,7 @@ import { ConnectionStatusCardComponent } from './components/connection-status-ca
 })
 export class ConnectionComponent implements OnInit, OnDestroy {
   private readonly fileService = inject(FileService);
+  private readonly sessionService = inject(SessionService);
   private statusSubscription?: Subscription;
 
   backendLive = false;
@@ -30,10 +32,9 @@ export class ConnectionComponent implements OnInit, OnDestroy {
   phoneServerUrl: string | null = null;
   lastChecked: Date | null = null;
   checking = false;
+  disconnecting = false;
 
   ngOnInit() {
-    // Subscribe to the shared poller instead of running a second independent
-    // interval - see FileService.connectionStatus$ for the polling logic.
     this.statusSubscription = this.fileService.connectionStatus$.subscribe(
       (status) => {
         this.backendLive = status.backendLive;
@@ -50,8 +51,26 @@ export class ConnectionComponent implements OnInit, OnDestroy {
     this.statusSubscription?.unsubscribe();
   }
 
-  /** Manual "refresh now" button in the template. */
   checkNow() {
     this.fileService.checkNow();
+  }
+
+  /** Manually tear down the paired phone's session. */
+  disconnectPhone() {
+    if (!this.phoneConnected || this.disconnecting) return;
+
+    this.disconnecting = true;
+    this.sessionService.closeSession().subscribe({
+      next: () => {
+        this.phoneConnected = false;
+        this.disconnecting = false;
+        this.fileService.checkNow(); // reconcile full status from server
+      },
+      error: (err) => {
+        console.error('[ConnectionComponent] Failed to disconnect phone:', err);
+        this.disconnecting = false;
+        this.fileService.checkNow();
+      },
+    });
   }
 }

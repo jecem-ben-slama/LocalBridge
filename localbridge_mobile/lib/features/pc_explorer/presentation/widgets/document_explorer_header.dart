@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
 
 class DocumentExplorerHeader extends StatelessWidget {
   final String locationLabel;
@@ -20,35 +21,36 @@ class DocumentExplorerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Container(
-      color: const Color(0xFF111C2E),
+      decoration: BoxDecoration(
+        color: colors.dark,
+        border: Border(bottom: BorderSide(color: colors.borderSoft)),
+      ),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.computer,
-                color: Colors.lightBlueAccent,
-                size: 20,
-              ),
+              Icon(Icons.computer_rounded, color: colors.primary, size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   locationLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.text,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               Text(
-                '$itemCount items',
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                '$itemCount item${itemCount == 1 ? '' : 's'}',
+                style: TextStyle(color: colors.muted, fontSize: 12),
               ),
             ],
           ),
@@ -56,22 +58,40 @@ class DocumentExplorerHeader extends StatelessWidget {
           TextField(
             controller: searchController,
             onChanged: onSearchChanged,
-            style: const TextStyle(fontSize: 14),
+            style: TextStyle(fontSize: 14, color: colors.text),
+            cursorColor: colors.primary,
             decoration: InputDecoration(
               hintText: 'Search this folder',
-              prefixIcon: const Icon(Icons.search, size: 20),
+              hintStyle: TextStyle(color: colors.mutedDark),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: colors.muted,
+              ),
               suffixIcon: searchQuery.isEmpty
                   ? null
                   : IconButton(
                       tooltip: 'Clear search',
-                      icon: const Icon(Icons.close, size: 18),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: colors.muted,
+                      ),
                       onPressed: onClearSearch,
                     ),
               filled: true,
-              fillColor: const Color(0xFF1B2A40),
+              fillColor: colors.card,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
+                borderSide: BorderSide(color: colors.borderSoft),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: colors.borderSoft),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: colors.primary),
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),

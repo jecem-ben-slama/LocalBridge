@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
+import 'package:localbridge_mobile/core/utlis/file_kind.dart';
+import 'package:localbridge_mobile/core/utlis/file_kind_visuals.dart';
 
 import '../../domain/entities/document.dart';
 
@@ -10,29 +13,41 @@ class DocumentFileIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isVideo = _matches(r'\.(mp4|mkv|avi|mov|webm)$');
-    final isPdf = _matches(r'\.pdf$');
+    final colors = context.appColors;
+    final kind =
+        classifyFileKind(document.name, isDirectory: document.isDirectory);
 
-    return Icon(
-      document.isDirectory
-          ? Icons.folder
-          : isVideo
-          ? Icons.movie
-          : isPdf
-          ? Icons.picture_as_pdf
-          : Icons.insert_drive_file,
-      size: size,
-      color: document.isDirectory
-          ? Colors.amber
-          : isVideo
-          ? Colors.purpleAccent
-          : isPdf
-          ? Colors.redAccent
-          : Colors.blueAccent,
-    );
+    return Icon(iconForFileKind(kind), size: size, color: _colorFor(kind, colors));
   }
 
-  bool _matches(String pattern) {
-    return RegExp(pattern, caseSensitive: false).hasMatch(document.name);
+  Color _colorFor(FileKind kind, colors) {
+    switch (kind) {
+      case FileKind.directory:
+        return colors.warning;
+      case FileKind.video:
+        return colors.accent;
+      case FileKind.audio:
+        return colors.info;
+      case FileKind.image:
+        return colors.success;
+      case FileKind.pdf:
+        return colors.warning;
+      case FileKind.text:
+        return colors.textSecondary;
+      case FileKind.docx:
+        return colors.info;
+      case FileKind.spreadsheet:
+        return colors.success;
+      case FileKind.presentation:
+        return colors.warning;
+      case FileKind.archive:
+        return colors.muted;
+      case FileKind.apk:
+        return colors.success;
+      case FileKind.executable:
+        return colors.mutedDark;
+      case FileKind.other:
+        return colors.primary;
+    }
   }
 }

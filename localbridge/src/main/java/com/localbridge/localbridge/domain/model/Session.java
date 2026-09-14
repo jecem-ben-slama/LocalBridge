@@ -41,6 +41,12 @@ public class Session {
     }
 
     public boolean isExpired(int inactivityTimeoutSeconds) {
+        if (activeTransfers > 0) {
+            // A transfer (browse/download/upload) is in progress. Proof of
+            // life in itself — never expire mid-transfer no matter how long
+            // it runs, even if it exceeds inactivityTimeoutSeconds.
+            return false;
+        }
         LocalDateTime expirationTime = lastActivityAt.plusSeconds(inactivityTimeoutSeconds);
         return LocalDateTime.now().isAfter(expirationTime);
     }

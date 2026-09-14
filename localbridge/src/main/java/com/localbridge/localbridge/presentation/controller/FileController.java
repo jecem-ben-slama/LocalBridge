@@ -45,7 +45,16 @@ public class FileController {
 
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<FileNode>>> listFiles(
-            @RequestParam(required = false) String path) {
+            @RequestParam(required = false) String path,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
+        if (sessionId != null && !sessionId.isEmpty()) {
+            try {
+                sessionService.refreshSession(sessionId);
+            } catch (Exception ignored) {
+                // Session tracking is best-effort and must not block browsing.
+            }
+        }
+
         try {
             List<FileNode> files = browseFilesUseCase.getDirectoryContents(path);
             return ResponseEntity.ok(ApiResponse.success("Directory listed successfully", files));
@@ -129,7 +138,17 @@ public class FileController {
     }
 
     @GetMapping("/preview")
-    public ResponseEntity<Resource> previewFile(@RequestParam String path) {
+    public ResponseEntity<Resource> previewFile(
+            @RequestParam String path,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
+        if (sessionId != null && !sessionId.isEmpty()) {
+            try {
+                sessionService.refreshSession(sessionId);
+            } catch (Exception ignored) {
+                // Session tracking is best-effort and must not block previews.
+            }
+        }
+
         try {
             Path targetPath = resolveExistingPath(path);
             if (targetPath == null || Files.isDirectory(targetPath)) {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:localbridge_mobile/core/services/session_service.dart';
 
 import '../../../../core/network/api_service.dart';
 import '../../../phone_files/domain/services/phone_server.dart';
@@ -24,10 +25,10 @@ abstract interface class ConnectionRemoteSource {
   void dispose();
 }
 
-
 class ConnectionRemoteSourceImpl implements ConnectionRemoteSource {
   final ApiService _apiService;
   final PhoneServer _phoneServer;
+  final SessionService _sessionService;
 
   bool _isConnected = false;
   Timer? _heartbeatTimer;
@@ -36,7 +37,21 @@ class ConnectionRemoteSourceImpl implements ConnectionRemoteSource {
 
   final _pcConnectionController = StreamController<bool>.broadcast();
 
-  ConnectionRemoteSourceImpl(this._apiService, this._phoneServer) {
+  ConnectionRemoteSourceImpl(
+    this._apiService,
+    this._phoneServer,
+    this._sessionService,
+  ) {
+    // If the backend tells us (via heartbeat) that our session has expired
+    // server-side - e.g. it idle-disconnected us after X minutes - treat
+    // that the same as any other disconnect: stop the local phone server,
+    // clear session state, and update connection status. Without this the
+    // phone kept heartbeating (and serving files) a session the backend
+    // had already forgotten about.
+    _sessionService.onSessionExpired = () {
+      _log('session expired server-side; disconnecting');
+      unawaited(disconnect());
+    };
     _startHeartbeat();
   }
 
@@ -58,11 +73,6 @@ class ConnectionRemoteSourceImpl implements ConnectionRemoteSource {
 
       final healthy = await checkConnection();
       _pcConnectionController.add(healthy);
-
-      if (!healthy && !_isConnecting) {
-        _log('Heartbeat lost connection. Attempting auto-reconnect...');
-        await connect();
-      }
     });
   }
 
@@ -97,8 +107,18 @@ class ConnectionRemoteSourceImpl implements ConnectionRemoteSource {
         ),
       );
 
+      final ok = response.statusCode == 200;
       _log('connect response status=${response.statusCode}');
-      _updateConnectionStatus(response.statusCode == 200);
+      _updateConnectionStatus(ok);
+
+      if (ok) {
+        final created = await _sessionService.createSession();
+        if (created) {
+          _sessionService.startHeartbeat();
+        } else {
+          _log('session creation failed; status will rely on relay only');
+        }
+      }
     } on DioException catch (error) {
       _log('connect failed: ${error.message}');
       _updateConnectionStatus(false);
@@ -111,6 +131,17 @@ class ConnectionRemoteSourceImpl implements ConnectionRemoteSource {
   Future<void> disconnect() async {
     _shouldBeConnected = false;
     _updateConnectionStatus(false);
+    _sessionService.stopHeartbeat();
+    _sessionService.clearSessionId();
+
+    if (_phoneServer.isRunning) {
+      try {
+        await _phoneServer.stop();
+        _log('phone local HTTP server stopped on disconnect');
+      } catch (e) {
+        _log('error stopping phone server: $e');
+      }
+    }
 
     try {
       final response = await _apiService.dio.post(
@@ -122,29 +153,35 @@ class ConnectionRemoteSourceImpl implements ConnectionRemoteSource {
       _log('disconnect request failed: $error\n$stackTrace');
     }
   }
-
-  @override
-  Future<bool> checkConnection() async {
-    try {
-      final response = await _apiService.dio.get<Map<String, dynamic>>(
-        '/api/phone/status',
-        options: Options(
-          connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
-        ),
-      );
-      final connected =
-          response.statusCode == 200 && response.data?['connected'] == true;
-      _updateConnectionStatus(connected);
-      return connected;
-    } on DioException catch (error) {
-      _log('connection check failed: ${error.message}');
-      _updateConnectionStatus(false);
-      return false;
-    }
+@override
+Future<bool> checkConnection() async {
+  final timestamp = DateTime.now().toIso8601String();
+  try {
+    final response = await _apiService.dio.get<Map<String, dynamic>>(
+      '/api/phone/status',
+      options: Options(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+      ),
+    );
+    
+    final connected =
+        response.statusCode == 200 && response.data?['connected'] == true;
+        
+    // Log the message, timestamp, and result
+    _log('[$timestamp] Connection check completed. Result: $connected, Data: ${response.data}');
+    
+    _updateConnectionStatus(connected);
+    return connected;
+  } on DioException catch (error) {
+    // Log the failure message, timestamp, and error details
+    _log('[$timestamp] Connection check failed. Message: ${error.message}');
+    
+    _updateConnectionStatus(false);
+    return false;
   }
-
-  @override
+}
+ @override
   void dispose() {
     _heartbeatTimer?.cancel();
     _pcConnectionController.close();

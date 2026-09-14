@@ -21,6 +21,11 @@ class DocumentCubit extends Cubit<DocumentState> {
     this._downloadFile,
     this._documentData,
   ) : super(const DocumentState());
+
+  Map<String, String> get headers => _documentData.headers;
+  String getThumbnailUrl(String path) => _documentData.getThumbnailUrl(path);
+  String getDownloadUrl(String path) => _documentData.getDownloadUrl(path);
+
   Future<List<Document>> loadDirectory([String? path]) async {
     emit(state.copyWith(isLoading: true, error: null));
     try {
@@ -33,20 +38,17 @@ class DocumentCubit extends Cubit<DocumentState> {
     }
   }
 
-  Map<String, String> get headers => _documentData.headers;
-  String getThumbnailUrl(String path) => _documentData.getThumbnailUrl(path);
-  String getDownloadUrl(String path) => _documentData.getDownloadUrl(path);
+  Future<void> load([String? path]) => loadDirectory(path);
 
-  Future<void> load([String? path]) async {
-    await loadDirectory(path);
-  } //!!!! testtt
-
+  /// Uploads [file] to [currentPath] on the PC. Returns the future from
+  /// the use case directly so callers (e.g. TransferService) correctly
+  /// await completion instead of resolving as soon as the call starts.
   Future<void> uploadFile({
     required String? currentPath,
     required File file,
     required void Function(int sent, int total) onProgress,
-  }) async {
-    _uploadFile.upload(currentPath, file, onProgress);
+  }) {
+    return _uploadFile.upload(currentPath, file, onProgress);
   }
 
   Future<String> downloadToLocation(

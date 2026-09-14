@@ -18,11 +18,15 @@
             <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-1">
                
 
-                <app-connection-status-card label="Phone connection"
-                    [value]="phoneConnected ? 'Connected' : 'Disconnected'" [badge]="phoneConnected ? 'ok' : 'wait'"
-                    [tone]="phoneConnected ? 'success' : 'warning'"
-                    [detail]="phoneConnected ? 'Device is paired and responsive' : 'Pairing required'">
-                </app-connection-status-card>
+            <app-connection-status-card label="Phone connection" [value]="phoneConnected ? 'Connected' : 'Disconnected'"
+                [badge]="phoneConnected ? 'ok' : 'wait'" [tone]="phoneConnected ? 'success' : 'warning'"
+                [detail]="phoneConnected ? 'Device is paired and responsive' : 'Pairing required'">
+            </app-connection-status-card>
+            
+            <button *ngIf="phoneConnected" type="button" (click)="disconnectPhone()" [disabled]="disconnecting"
+                class="rounded-full border border-bridge-border bg-bridge-dark px-3 py-1 text-xs font-medium text-bridge-text-secondary hover:text-bridge-text disabled:opacity-50">
+                {{ disconnecting ? 'Disconnecting…' : 'Disconnect phone' }}
+            </button>
 
                 <app-connection-status-card label="PC session" [value]="backendLive ? 'Reachable' : 'Unavailable'"
                     [badge]="backendLive ? 'pc' : 'down'" [tone]="backendLive ? 'success' : 'danger'"

@@ -4,6 +4,7 @@ import com.localbridge.localbridge.application.port.SessionRepository;
 import com.localbridge.localbridge.domain.model.Session;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -25,19 +26,27 @@ public class SessionService {
      * Creates a new session for a device.
      */
     public Session createSession(String deviceId, String deviceName) {
-        // Check if an existing session exists
         Optional<Session> existingSession = sessionRepository.findByDeviceId(deviceId);
         if (existingSession.isPresent()) {
             Session session = existingSession.get();
-            session.recordActivity();
-            sessionRepository.update(session);
-            return session;
+            if (session.isActive() && !session.isExpired(inactivityTimeoutSeconds)) {
+                session.recordActivity();
+                sessionRepository.update(session);
+                return session;
+            }
+            // Stale/closed session for this device — don't resurrect it, replace it.
+            sessionRepository.delete(session.getSessionId());
         }
 
-        // Create new session
         Session session = new Session(deviceId, deviceName);
         sessionRepository.save(session);
         return session;
+    }
+
+    public Session getOrCreateSession(String deviceId, String deviceName) {
+        return sessionRepository.findByDeviceId(deviceId)
+                .filter(s -> s.isActive() && !s.isExpired(inactivityTimeoutSeconds))
+                .orElseGet(() -> createSession(deviceId, deviceName));
     }
 
     /**
@@ -51,14 +60,6 @@ public class SessionService {
             sessionRepository.update(session);
         }
         return sessionOpt;
-    }
-
-    /**
-     * Gets or creates a session (idempotent).
-     */
-    public Session getOrCreateSession(String deviceId, String deviceName) {
-        return sessionRepository.findByDeviceId(deviceId)
-                .orElseGet(() -> createSession(deviceId, deviceName));
     }
 
     /**
@@ -87,6 +88,20 @@ public class SessionService {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Returns active sessions that have gone idle past the configured
+     * timeout (transfers in progress never count as idle — see
+     * Session.isExpired). Used by the scheduled sweep to react to idle
+     * sessions (e.g. disconnect the phone relay) BEFORE they're deleted,
+     * since cleanupExpiredSessions()/deleteExpired() only removes the
+     * records and has no way to notify anything else.
+     */
+    public List<Session> findExpiredActiveSessions() {
+        return sessionRepository.findAllActive().stream()
+                .filter(s -> s.isExpired(inactivityTimeoutSeconds))
+                .toList();
     }
 
     /**

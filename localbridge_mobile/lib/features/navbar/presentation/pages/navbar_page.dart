@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:localbridge_mobile/core/errors/user_message.dart';
 import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
 import 'package:localbridge_mobile/core/feedback/app_feedback.dart';
+import 'package:localbridge_mobile/features/connection/presentation/connectionwraper.dart';
 import 'package:localbridge_mobile/features/connection/presentation/pages/connection_page.dart';
 import 'package:localbridge_mobile/features/connection/presentation/pages/qr_scanner_page.dart';
 import 'package:localbridge_mobile/features/navbar/presentation/cubit/navbar_cubit.dart';
@@ -19,9 +20,14 @@ class Navbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => locator<NavbarCubit>()..start(),
-      child: const _NavbarView(),
+    // Wrapped here, once, so every place that navigates to Navbar() — the
+    // initial post-scan push, and any future reconnect push — is covered
+    // without needing to remember to wrap it at the call site.
+    return ConnectionListenerWrapper(
+      child: BlocProvider(
+        create: (_) => locator<NavbarCubit>()..start(),
+        child: const _NavbarView(),
+      ),
     );
   }
 }
@@ -69,18 +75,7 @@ class _NavbarView extends StatelessWidget {
       listenWhen: (previous, current) =>
           previous.pcReachable != current.pcReachable ||
           previous.error != current.error,
-      listener: (context, state) {
-        if (!state.pcReachable) {
-          showAppFeedback(
-            context,
-            'Connection lost with PC.',
-            type: FeedbackType.warning,
-          );
-          _navigateToScanner(context);
-        } else if (state.error != null) {
-          showAppFeedback(context, state.error!, type: FeedbackType.error);
-        }
-      },
+      listener: (context, state) {},
       builder: (context, state) {
         return Scaffold(
           backgroundColor: colors.darkest,
@@ -102,7 +97,7 @@ class _NavbarView extends StatelessWidget {
               ],
             ),
           ),
-          //* Bottom Navigation Bar 
+          //* Bottom Navigation Bar
           bottomNavigationBar: NavbarBottomBar(
             currentIndex: state.currentIndex,
             onTap: (index) => context.read<NavbarCubit>().setIndex(index),
@@ -112,4 +107,3 @@ class _NavbarView extends StatelessWidget {
     );
   }
 }
-

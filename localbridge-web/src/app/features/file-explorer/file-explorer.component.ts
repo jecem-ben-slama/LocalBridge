@@ -309,17 +309,27 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.phoneHeartbeat?.unsubscribe();
     this.phoneHeartbeat = interval(10000)
       .pipe(
-        switchMap(() => this.fileService.heartbeatPhoneServer()),
-        catchError(() => {
-          if (this.phoneServerWasAvailable && !this.phoneServerStopAlertShown) {
-            this.phoneServerStopAlertShown = true;
-            this.showToast(
-              'The phone server stopped. Phone files are no longer available.',
-              'error'
-            );
+        switchMap(() => this.fileService.connectionStatus$),
+        switchMap((status) => {
+          if (!status.phoneServerUrl) {
+            return of(null);
           }
-          this.phoneServerWasAvailable = false;
-          return of(null);
+          return this.fileService.heartbeatPhoneServer(false).pipe(
+            catchError(() => {
+              if (
+                this.phoneServerWasAvailable &&
+                !this.phoneServerStopAlertShown
+              ) {
+                this.phoneServerStopAlertShown = true;
+                this.showToast(
+                  'The phone server stopped. Phone files are no longer available.',
+                  'error'
+                );
+              }
+              this.phoneServerWasAvailable = false;
+              return of(null);
+            })
+          );
         })
       )
       .subscribe();

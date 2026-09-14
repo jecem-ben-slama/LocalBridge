@@ -1,14 +1,16 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:localbridge_mobile/features/connection/presentation/pages/qr_scanner_page.dart';
 import 'core/theme/app_theme.dart';
 import 'injection_container.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
+
   if (Platform.isAndroid) {
     final notificationStatus = await Permission.notification.status;
     if (!notificationStatus.isGranted) {

@@ -14,9 +14,11 @@ import 'core/services/pdf_service.dart';
 import 'core/services/file_storage_service.dart';
 import 'core/services/transfer_service.dart';
 import 'core/services/session_service.dart';
+import 'core/services/video_player_service.dart';
 import 'infrastructure/services/file_storage_service_impl.dart';
 import 'infrastructure/services/background_file_transfer_service.dart';
 import 'infrastructure/services/pdf_service_adapter.dart';
+import 'infrastructure/services/media_kit_video_player_service.dart';
 
 // Feature: Connection Layer Modules
 import 'features/connection/domain/repositories/connection_repository.dart';
@@ -78,6 +80,13 @@ void setupDependencies() {
     SharedFilesLocalSourceImpl.new,
   );
 
+  // Video playback abstraction. Registered as a FACTORY, not a singleton:
+  // each media viewer screen owns its own player instance (native
+  // resources tied to that screen's lifecycle) and disposes it on close.
+  // To swap the underlying engine later, write a new VideoPlayerService
+  // implementation and change only this one line.
+  locator.registerFactory<VideoPlayerService>(MediaKitVideoPlayerService.new);
+
   // ─── STEP 2: DEPENDENT SERVICES ───
   locator.registerLazySingleton<SessionService>(
     () => SessionService(locator<ApiService>()),
@@ -106,6 +115,7 @@ void setupDependencies() {
     () => ConnectionRemoteSourceImpl(
       locator<ApiService>(),
       locator<PhoneServer>(),
+      locator<SessionService>(),
     ),
   );
 
@@ -157,7 +167,7 @@ void setupDependencies() {
 
   // Connection use cases
   locator.registerLazySingleton(
-    () => CheckPcConnectivity(locator<ConnectionRepository>()),
+    () => CheckPcConnectivity(locator<ConnectionRepository>(),locator<SessionService>(),)
   );
 
   locator.registerLazySingleton(

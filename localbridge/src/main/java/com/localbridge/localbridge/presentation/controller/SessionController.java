@@ -2,7 +2,6 @@ package com.localbridge.localbridge.presentation.controller;
 
 import com.localbridge.localbridge.application.service.SessionService;
 import com.localbridge.localbridge.domain.model.Session;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -57,25 +56,37 @@ public class SessionController {
      * Sends heartbeat to keep session alive.
      * GET /api/session/heartbeat
      * Expects sessionId in header: X-Session-Id
+     *
+     * The response now always includes "active". Previously a session that
+     * had already expired/been closed server-side still got back
+     * success: true with no way for the caller to tell the difference from
+     * a genuinely healthy session — so a client kept heartbeating (and, on
+     * the phone, kept its local HTTP server running) indefinitely even
+     * after the backend had idle-disconnected it. Callers should treat
+     * active: false as "tear yourself down", not just log it.
      */
     @GetMapping("/heartbeat")
     public ResponseEntity<?> heartbeat(@RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
         if (sessionId == null || sessionId.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                     "success", true,
+                    "active", true,
                     "message", "No session header; session tracking is optional for this connection"));
         }
 
-        Optional<Session> sessionOpt = sessionService.refreshSession(sessionId);
-        if (sessionOpt.isPresent()) {
+        boolean valid = sessionService.isSessionValid(sessionId);
+        if (valid) {
+            sessionService.refreshSession(sessionId);
             return ResponseEntity.ok(Map.of(
                     "success", true,
+                    "active", true,
                     "message", "Session heartbeat recorded"));
         }
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Session not found; continuing without strict verification"));
+                "active", false,
+                "message", "Session expired or not found"));
     }
 
     /**

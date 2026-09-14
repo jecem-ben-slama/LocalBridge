@@ -95,6 +95,12 @@ class PhoneHttpServer implements PhoneServer {
 
   Future<void> _handleRequest(HttpRequest request) async {
     _activeRequests++;
+    // Mark liveness as soon as the request arrives, so a long-running
+    // request (a big /browse listing, a large /download stream) doesn't
+    // let _stopWhenIdle think we've gone quiet just because it hasn't
+    // finished yet - _activeRequests > 0 is what guards that below.
+    _lastHeartbeat = DateTime.now();
+    _setPeerConnected(true);
     try {
       _setCorsHeaders(request.response);
       if (request.method == 'OPTIONS') {
@@ -109,13 +115,6 @@ class PhoneHttpServer implements PhoneServer {
         });
         return;
       }
-
-      // Any authorized request is proof of a live peer, not just /health.
-      // Previously only /health touched _lastHeartbeat, so active browsing/
-      // downloading without an explicit health check could still trip the
-      // peer timeout below and report "disconnected" mid-session.
-      _lastHeartbeat = DateTime.now();
-      _setPeerConnected(true);
 
       if (request.uri.path == '/health') {
         await _sendJson(request.response, HttpStatus.ok, {'ok': true});
@@ -153,11 +152,14 @@ class PhoneHttpServer implements PhoneServer {
             'success': false,
             'message': _userFacingMessage(error),
           });
-        } catch (_) {
-          // The client may have disconnected before the error response.
-        }
+        } catch (_) {}
       }
     } finally {
+      // Refresh again on completion - a request that took a while (large
+      // listing, big file stream) shouldn't leave _lastHeartbeat stuck at
+      // its start time while _stopWhenIdle's peer-timeout check is running
+      // concurrently on its own 10s timer.
+      _lastHeartbeat = DateTime.now();
       _activeRequests--;
       if (_activeRequests < 0) {
         _activeRequests = 0;
@@ -335,20 +337,7 @@ class PhoneHttpServer implements PhoneServer {
         .where((entry) => entry.value.trim() == expected.trim())
         .map((entry) => entry.key)
         .firstOrNull;
-    final authorized = matchingSource != null;
-    if (!authorized) {
-      _log(
-        'unauthorized ${request.method} ${request.uri.path}; '
-        'credentialPresent=${credentials.isNotEmpty}, '
-        'credentialSources=${credentials.keys.join(',')}',
-      );
-    } else if (credentials.length > 1) {
-      _log(
-        'authorized ${request.method} ${request.uri.path}; '
-        'matchingSource=$matchingSource, receivedSources=${credentials.keys.join(',')}',
-      );
-    }
-    return authorized;
+    return matchingSource != null;
   }
 
   Future<String> _safePath(String requestedPath) async {
@@ -413,10 +402,16 @@ class PhoneHttpServer implements PhoneServer {
   void _stopWhenIdle() {
     final lastHeartbeat = _lastHeartbeat;
     if (lastHeartbeat == null) return;
+
+    // A request is actively being served right now - that IS liveness,
+    // regardless of how long it's been running. Don't let a slow (but
+    // legitimate) /browse or /download flip peerConnected to false out
+    // from under an in-progress transfer.
+    if (_activeRequests > 0) return;
+
     if (DateTime.now().difference(lastHeartbeat) >= _peerTimeout) {
       _setPeerConnected(false);
     }
-    if (_activeRequests > 0) return;
     if (DateTime.now().difference(lastHeartbeat) >= _idleTimeout) {
       unawaited(stop());
     }

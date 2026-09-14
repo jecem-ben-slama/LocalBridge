@@ -51,9 +51,19 @@ public class PhoneFileController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<?> status() {
+    public ResponseEntity<?> status(
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
         Map<String, Object> status = new LinkedHashMap<>();
-        status.put("connected", relayService.isPhoneConnected());
+        boolean connected = relayService.isPhoneConnected();
+        if (!connected && sessionId != null && !sessionId.isEmpty()) {
+            // relayService's clock only reflects the reverse (phone-files)
+            // relay and has no visibility into PC-file browsing at all.
+            // Fall back to the PC-browsing session's own activity tracking
+            // so status doesn't flip to "disconnected" mid-browse just
+            // because the relay's 30s poll window lapsed.
+            connected = sessionService.isSessionValid(sessionId);
+        }
+        status.put("connected", connected);
         status.put("phoneServerUrl", relayService.getPhoneServerUrl());
         status.put("phoneServerToken", relayService.getPhoneServerToken());
         return ResponseEntity.ok(status);

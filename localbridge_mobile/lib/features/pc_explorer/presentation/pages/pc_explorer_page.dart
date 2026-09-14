@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
+import 'package:localbridge_mobile/core/utlis/file_kind.dart';
+import 'package:localbridge_mobile/features/common/presentation/pages/audio_player_page.dart';
+import 'package:localbridge_mobile/features/common/presentation/pages/image_viewer_page.dart';
+import 'package:localbridge_mobile/features/common/presentation/pages/pdf_viewer_page.dart';
+import 'package:localbridge_mobile/features/common/presentation/pages/text_file_viewer_page.dart';
+import 'package:localbridge_mobile/features/common/presentation/pages/video_viewer_page.dart';
 import 'package:localbridge_mobile/features/pc_explorer/domain/entities/document.dart';
 import 'package:localbridge_mobile/injection_container.dart';
 // Widgets
 import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_explorer_header.dart';
-import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_file_icon.dart';
-import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_thumbnail.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_grid_tile.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_list_tile.dart';
+import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_tile_skeletons.dart';
 import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_transfer_progress.dart';
 import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/empty_document_state.dart';
 import 'package:localbridge_mobile/features/pc_explorer/presentation/cubit/document_cubit.dart';
 // Package Services
 import 'package:localbridge_mobile/core/services/pdf_service.dart';
 import 'package:localbridge_mobile/core/services/transfer_service.dart';
-import 'package:file_picker/file_picker.dart';// XX
-import 'package:open_filex/open_filex.dart'; // XX
-import 'package:video_player/video_player.dart'; // XX
+import 'package:file_picker/file_picker.dart';
+import 'package:open_filex/open_filex.dart';
 // Shared
 import 'package:localbridge_mobile/core/errors/user_message.dart';
 import 'package:localbridge_mobile/core/feedback/app_feedback.dart';
@@ -168,63 +175,67 @@ class _PcExplorerTabState extends State<PcExplorerTab> {
   String get _locationLabel =>
       _currentPath == null || _currentPath!.isEmpty ? 'This PC' : _currentPath!;
 
-  bool _isImageFile(String name) => RegExp(
-    r'\.(png|jpg|jpeg|gif|webp|bmp)$',
-    caseSensitive: false,
-  ).hasMatch(name);
-
-  bool _isVideoFile(String name) =>
-      RegExp(r'\.(mp4|mkv|avi|mov|webm)$', caseSensitive: false).hasMatch(name);
-
-  bool _isPdfFile(String name) => name.toLowerCase().endsWith('.pdf');
-
-  bool _isDocxFile(String name) =>
-      RegExp(r'\.(docx|doc)$', caseSensitive: false).hasMatch(name);
-
   void _onNodeTap(Document file) {
     if (file.isDirectory) {
       _pathHistory.add(_currentPath);
       _loadFiles(file.path);
-    } else if (_isImageFile(file.name)) {
-      _showImageLightbox(file);
-    } else if (_isVideoFile(file.name)) {
-      _openInternalVideoPlayer(file);
-    } else if (_isPdfFile(file.name)) {
-      _openInternalPdfViewer(file);
-    } else if (_isDocxFile(file.name)) {
-      _downloadAndOpenExternal(file);
-    } else {
-      _downloadDirectly(file);
+      return;
+    }
+
+    switch (classifyFileKind(file.name)) {
+      case FileKind.image:
+        _showImageLightbox(file);
+        break;
+      case FileKind.video:
+        _pushStreamedViewer(
+          file,
+          builder: (url) => VideoViewerPage(
+            title: file.name,
+            source: url,
+            headers: _cubit.headers,
+            onDownload: () => _downloadDirectly(file),
+          ),
+        );
+        break;
+      case FileKind.audio:
+        _pushStreamedViewer(
+          file,
+          builder: (url) => AudioPlayerPage(
+            title: file.name,
+            source: url,
+            headers: _cubit.headers,
+            onDownload: () => _downloadDirectly(file),
+          ),
+        );
+        break;
+      case FileKind.pdf:
+        _openInternalPdfViewer(file);
+        break;
+      case FileKind.text:
+        _openInternalTextViewer(file);
+        break;
+      case FileKind.docx:
+        _downloadAndOpenExternal(file);
+        break;
+      default:
+        _downloadDirectly(file);
     }
   }
 
-  void _downloadAndOpenExternal(Document file) async {
-    _transfers.startDownload(
-      fileName: file.name,
-      run: (onProgress) => _cubit.downloadToLocation(
-        file.path,
-        file.name,
-        onProgress: onProgress,
-      ),
-      onComplete: (path) => OpenFilex.open(path),
-    );
+  /// Audio and video both open a fullscreen viewer against the file's
+  /// streamed download URL, with the same headers and download callback.
+  /// Previously `_openInternalAudioPlayer` and `_openInternalVideoPlayer`
+  /// were two near-identical methods; this is the one push helper both
+  /// kinds now go through.
+  void _pushStreamedViewer(
+    Document file, {
+    required Widget Function(String url) builder,
+  }) {
+    final url = _cubit.getDownloadUrl(file.path);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => builder(url)));
   }
 
-  void _openInternalVideoPlayer(Document file) {
-    final videoUrl = _cubit.getDownloadUrl(file.path);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => InternalVideoScreen(
-          url: videoUrl,
-          file: file,
-          headers: _cubit.headers,
-          onDownload: () => _downloadDirectly(file),
-        ),
-      ),
-    );
-  }
-
-  void _openInternalPdfViewer(Document file) async {
+  void _openInternalTextViewer(Document file) {
     _transfers.startDownload(
       fileName: file.name,
       run: (onProgress) => _cubit.downloadToLocation(
@@ -236,65 +247,85 @@ class _PcExplorerTabState extends State<PcExplorerTab> {
         if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => InternalPdfScreen(
-              filePath: localPath,
-              file: file,
-              onDownload: () => _downloadDirectly(file),
-            ),
+            builder: (_) =>
+                TextFileViewerPage(title: file.name, filePath: localPath),
           ),
         );
       },
+    );
+  }
+
+  void _downloadAndOpenExternal(Document file) {
+    _transfers.startDownload(
+      fileName: file.name,
+      run: (onProgress) => _cubit.downloadToLocation(
+        file.path,
+        file.name,
+        onProgress: onProgress,
+      ),
+      onComplete: (path) => OpenFilex.open(path),
+    );
+  }
+
+  void _openInternalPdfViewer(Document file) {
+    final pdfUrl = _cubit.getDownloadUrl(file.path);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PdfViewerPage(
+          title: file.name,
+          viewer: locator<PdfService>()
+              .buildNetworkViewer(pdfUrl, headers: _cubit.headers),
+          actionIcon: Icons.download_rounded,
+          actionTooltip: 'Download',
+          onAction: () {
+            Navigator.of(context).pop();
+            _downloadDirectly(file);
+          },
+        ),
+      ),
     );
   }
 
   void _showImageLightbox(Document file) {
     final imageUrl = _cubit.getDownloadUrl(file.path);
-    showDialog(
-      context: context,
-      useSafeArea: false,
-      builder: (context) {
-        return Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black.withValues(alpha: 0.7),
-            title: Text(file.name, style: const TextStyle(fontSize: 14)),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.download),
-                onPressed: _transfers.isBusy
-                    ? null
-                    : () {
-                        Navigator.of(context).pop();
-                        _downloadDirectly(file);
-                      },
-              ),
-            ],
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              child: Image.network(
-                imageUrl,
-                headers: _cubit.headers,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-        );
-      },
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        pageBuilder: (context, __, ___) => ImageViewerPage(
+          title: file.name,
+          imageProvider: NetworkImage(imageUrl, headers: _cubit.headers),
+          downloadDisabled: _transfers.isBusy,
+          // ImageViewerPage's DownloadAppBarAction now pops the route
+          // itself before invoking this, so we no longer pop here too.
+          onDownload: () => _downloadDirectly(file),
+        ),
+      ),
     );
+  }
+
+  /// The thumbnail URL to show for [file], or null when it isn't an image
+  /// (in which case `DocumentThumbnail` falls back to a file-kind icon).
+  String? _thumbnailUrlFor(Document file) {
+    final isImage = !file.isDirectory &&
+        classifyFileKind(file.name) == FileKind.image;
+    return isImage ? _cubit.getThumbnailUrl(file.path) : null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return PopScope(
       canPop: _pathHistory.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _navigateBack();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: colors.darkest,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF111C2E),
           titleSpacing: 20,
           title: const Text(
             'PC Files',
@@ -303,27 +334,29 @@ class _PcExplorerTabState extends State<PcExplorerTab> {
           leading: _pathHistory.isNotEmpty
               ? IconButton(
                   tooltip: 'Go back',
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_rounded),
                   onPressed: _navigateBack,
                 )
               : null,
           actions: [
             IconButton(
               tooltip: 'Refresh folder',
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               onPressed: _isLoading ? null : () => _loadFiles(_currentPath),
             ),
             IconButton(
               tooltip: _isGridView ? 'Use list view' : 'Use grid view',
-              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+              icon: Icon(
+                _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+              ),
               onPressed: () => setState(() => _isGridView = !_isGridView),
             ),
             IconButton(
               tooltip: 'Send to PC',
-              icon: const Icon(Icons.upload_file),
+              icon: const Icon(Icons.upload_file_rounded),
               onPressed: _transfers.isBusy ? null : _uploadFile,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
           ],
         ),
         body: Column(
@@ -336,35 +369,38 @@ class _PcExplorerTabState extends State<PcExplorerTab> {
               onClearSearch: _clearSearch,
               onSearchChanged: (value) => setState(() => _searchQuery = value),
             ),
-            if (_isUploading) ...[
+            if (_isUploading)
               DocumentTransferProgress(
                 label: 'Uploading',
                 fileName: _uploadingFileName,
                 progress: _uploadProgress,
-                color: Colors.blueAccent,
+                color: colors.accent,
                 onCancel: () => _transfers.cancel(),
               ),
-            ],
-            if (_isDownloading) ...[
+            if (_isDownloading)
               DocumentTransferProgress(
                 label: 'Downloading',
                 fileName: _downloadingFileName,
                 progress: _downloadProgress,
-                color: Colors.greenAccent,
+                color: colors.success,
                 onCancel: () => _transfers.cancel(),
               ),
-            ],
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? (_isGridView
+                      ? const DocumentGridSkeleton()
+                      : const DocumentListSkeleton())
                   : _visibleFiles.isEmpty
                   ? EmptyDocumentState(
                       isSearching: _searchQuery.trim().isNotEmpty,
                       onClearSearch: _clearSearch,
                     )
-                  : _isGridView
-                  ? _buildGridView()
-                  : _buildListView(),
+                  : RefreshIndicator(
+                      color: colors.primary,
+                      backgroundColor: colors.elevated,
+                      onRefresh: () => _loadFiles(_currentPath),
+                      child: _isGridView ? _buildGridView() : _buildListView(),
+                    ),
             ),
           ],
         ),
@@ -384,262 +420,34 @@ class _PcExplorerTabState extends State<PcExplorerTab> {
       itemCount: _visibleFiles.length,
       itemBuilder: (context, index) {
         final file = _visibleFiles[index];
-        final isImage = !file.isDirectory && _isImageFile(file.name);
-
-        return Stack(
-          children: [
-            InkWell(
-              onTap: () => _onNodeTap(file),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF172438),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(10),
-                        ),
-                        child: Container(
-                          color: const Color(0xFF0F172A),
-                          child: isImage
-                              ? DocumentThumbnail(
-                                  document: file,
-                                  imageUrl: _cubit.getThumbnailUrl(file.path),
-                                  headers: _cubit.headers,
-                                )
-                              : DocumentFileIcon(document: file),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(6.0),
-                      child: Text(
-                        file.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (!file.isDirectory)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Material(
-                  color: Colors.black38,
-                  shape: const CircleBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: IconButton(
-                    constraints: const BoxConstraints(
-                      minWidth: 28,
-                      minHeight: 28,
-                    ),
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(
-                      Icons.download,
-                      color: Colors.white70,
-                      size: 16,
-                    ),
-                    onPressed: _transfers.isBusy
-                        ? null
-                        : () => _downloadDirectly(file),
-                  ),
-                ),
-              ),
-          ],
+        return DocumentGridTile(
+          file: file,
+          thumbnailUrl: _thumbnailUrlFor(file),
+          headers: _cubit.headers,
+          onTap: () => _onNodeTap(file),
+          onDownload:
+              file.isDirectory || _transfers.isBusy ? null : () => _downloadDirectly(file),
         );
       },
     );
   }
 
   Widget _buildListView() {
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       itemCount: _visibleFiles.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, index) {
         final file = _visibleFiles[index];
-        final isImage = !file.isDirectory && _isImageFile(file.name);
-
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 2,
-          ),
-          tileColor: index.isEven ? Colors.white.withValues(alpha: 0.02) : null,
-          leading: isImage
-              ? DocumentThumbnail(
-                  document: file,
-                  imageUrl: _cubit.getThumbnailUrl(file.path),
-                  headers: _cubit.headers,
-                  width: 40,
-                  height: 40,
-                )
-              : DocumentFileIcon(document: file, size: 24),
-          title: Text(
-            file.name,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-          trailing: !file.isDirectory
-              ? IconButton(
-                  icon: const Icon(
-                    Icons.download,
-                    color: Colors.white54,
-                    size: 20,
-                  ),
-                  onPressed: _transfers.isBusy
-                      ? null
-                      : () => _downloadDirectly(file),
-                )
-              : null,
+        return DocumentListTile(
+          file: file,
+          thumbnailUrl: _thumbnailUrlFor(file),
+          headers: _cubit.headers,
           onTap: () => _onNodeTap(file),
+          onDownload:
+              file.isDirectory || _transfers.isBusy ? null : () => _downloadDirectly(file),
         );
       },
-    );
-  }
-}
-
-/// Internal Video Player Screen
-class InternalVideoScreen extends StatefulWidget {
-  final String url;
-  final Document file;
-  final Map<String, String> headers;
-  final VoidCallback onDownload;
-
-  const InternalVideoScreen({
-    super.key,
-    required this.url,
-    required this.file,
-    required this.headers,
-    required this.onDownload,
-  });
-
-  @override
-  State<InternalVideoScreen> createState() => _InternalVideoScreenState();
-}
-
-class _InternalVideoScreenState extends State<InternalVideoScreen> {
-  late VideoPlayerController _controller;
-  bool _initialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        VideoPlayerController.networkUrl(
-            Uri.parse(widget.url),
-            httpHeaders: widget.headers,
-          )
-          ..initialize().then((_) {
-            if (mounted) {
-              setState(() => _initialized = true);
-              _controller.play();
-            }
-          });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          widget.file.name,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.white),
-            onPressed: () {
-              Navigator.of(context).pop();
-              widget.onDownload();
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: _initialized
-            ? AspectRatio(
-                aspectRatio: _controller.value.aspectRatio,
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    VideoPlayer(_controller),
-                    VideoProgressIndicator(_controller, allowScrubbing: true),
-                  ],
-                ),
-              )
-            : const CircularProgressIndicator(),
-      ),
-      floatingActionButton: _initialized
-          ? FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _controller.value.isPlaying
-                      ? _controller.pause()
-                      : _controller.play();
-                });
-              },
-              child: Icon(
-                _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-/// Internal PDF Viewer Screen using syncfusion_flutter_pdfviewer
-class InternalPdfScreen extends StatelessWidget {
-  final String filePath;
-  final Document file;
-  final VoidCallback onDownload;
-
-  const InternalPdfScreen({
-    super.key,
-    required this.filePath,
-    required this.file,
-    required this.onDownload,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          file.name,
-          style: const TextStyle(fontSize: 14, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF1E293B),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download, color: Colors.white),
-            onPressed: () {
-              Navigator.of(context).pop();
-              onDownload();
-            },
-          ),
-        ],
-      ),
-      body: locator<PdfService>().buildViewer(filePath),
     );
   }
 }

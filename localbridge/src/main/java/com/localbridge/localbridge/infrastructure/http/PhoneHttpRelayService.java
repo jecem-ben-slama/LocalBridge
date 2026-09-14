@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class PhoneHttpRelayService {
     // Change from 90 seconds to 300 seconds (5 minutes)
-    private static final long PHONE_TIMEOUT_SECONDS = 300;
+    private static final long PHONE_TIMEOUT_SECONDS = 30;
     private static final int PIPE_BUFFER_SIZE = 64 * 1024;
 
     private final BlockingQueue<PhoneCommand> commands = new LinkedBlockingQueue<>();
@@ -36,6 +36,8 @@ public class PhoneHttpRelayService {
     }
 
     public void disconnect() {
+        // Queue a disconnect command so the polling mobile app executes it
+
         lastPhonePoll = 0;
         phoneServerUrl = null;
         phoneServerToken = null;
@@ -46,7 +48,6 @@ public class PhoneHttpRelayService {
         downloads.values().forEach(session -> session.fail(new IOException("Phone disconnected")));
         downloads.clear();
     }
-
     public boolean isPhoneConnected() {
         boolean relayConnected = lastPhonePoll > 0
                 && System.currentTimeMillis() - lastPhonePoll < TimeUnit.SECONDS.toMillis(PHONE_TIMEOUT_SECONDS);

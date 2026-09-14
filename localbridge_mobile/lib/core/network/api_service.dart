@@ -7,6 +7,11 @@ class ApiService {
   final Dio dio;
   String? _sessionId;
 
+  /// Called on every successful (2xx) response. SessionService hooks into
+  /// this so that real usage (browsing/downloading/uploading) counts as
+  /// activity locally, without waiting for the next periodic heartbeat.
+  void Function()? onActivity;
+
   ApiService({Dio? dio})
     : dio =
           dio ??
@@ -17,7 +22,6 @@ class ApiService {
               receiveTimeout: const Duration(seconds: 10),
             ),
           ) {
-    // Add interceptor to include session ID in all requests
     this.dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -26,8 +30,14 @@ class ApiService {
           }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          final code = response.statusCode ?? 0;
+          if (code >= 200 && code < 300) {
+            onActivity?.call();
+          }
+          return handler.next(response);
+        },
         onError: (error, handler) {
-          // Handle 401 Unauthorized - session expired
           if (error.response?.statusCode == 401) {
             debugPrint(
               '[ApiService] Session expired or invalid - received 401 Unauthorized',

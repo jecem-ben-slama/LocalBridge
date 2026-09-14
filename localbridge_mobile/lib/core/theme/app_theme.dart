@@ -28,6 +28,44 @@ class AppTheme {
         bodyMedium: TextStyle(color: AppColors.textSecondary),
         bodySmall: TextStyle(color: AppColors.muted),
       ),
+
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.darkest,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: AppColors.text),
+        titleTextStyle: TextStyle(
+          color: AppColors.text,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+
+      iconTheme: const IconThemeData(color: AppColors.textSecondary),
+
+      dividerTheme: const DividerThemeData(
+        color: AppColors.borderSoft,
+        thickness: 1,
+        space: 1,
+      ),
+
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+      ),
+
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.elevated,
+        contentTextStyle: const TextStyle(color: AppColors.text),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+
+      splashColor: AppColors.primary.withValues(alpha: 0.08),
+      highlightColor: AppColors.primary.withValues(alpha: 0.04),
     );
   }
 }
