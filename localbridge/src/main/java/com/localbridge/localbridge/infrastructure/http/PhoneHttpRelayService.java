@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class PhoneHttpRelayService {
-    // Change from 90 seconds to 300 seconds (5 minutes)
     private static final long PHONE_TIMEOUT_SECONDS = 30;
     private static final int PIPE_BUFFER_SIZE = 64 * 1024;
 
