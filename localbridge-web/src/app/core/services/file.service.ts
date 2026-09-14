@@ -99,27 +99,6 @@ export class FileService {
   // Single, centralized connection poller. Components subscribe to this
   // instead of each running their own interval against the shared service
   // state - that duplication was what caused the checking-flag race.
-  //
-  // NOTE: this used to be paired with a *second*, independent heartbeat
-  // loop (startPhoneHeartbeat/phoneHeartbeat) that also called
-  // heartbeatPhoneServer on its own 10s timer. Both loops incremented the
-  // same heartbeatFailureCount, so a single slow response from the phone
-  // (e.g. while it was serving a large /browse listing) could get counted
-  // as two failures in quick succession, tripping the disconnect threshold
-  // well before the phone was actually unreachable. There is now exactly
-  // one thing that calls heartbeatPhoneServer: this poller.
-  //
-  // NOTE 2: this uses exhaustMap, not switchMap. HEARTBEAT_TIMEOUT_MS
-  // (20s) is longer than the 10s tick interval, so with switchMap any
-  // heartbeat that legitimately took >10s (e.g. phone mid-/browse) would
-  // get cancelled - not failed - by the next tick before it could ever
-  // call patchStatus(). That silently froze the UI at its initial
-  // "checking" defaults instead of ever reflecting a live phone.
-  // exhaustMap lets an in-flight poll run to completion (success or real
-  // failure) and simply drops ticks that land while it's still running.
-  // pollOnce() is bounded (STATUS_TIMEOUT_MS + HEARTBEAT_TIMEOUT_MS worst
-  // case) so it always settles and the next tick is never blocked for
-  // long.
   private readonly manualCheck$ = new Subject<void>();
   private readonly statusSubject = new BehaviorSubject<ConnectionStatus>({
     backendLive: false,
@@ -132,7 +111,8 @@ export class FileService {
   readonly connectionStatus$ = this.statusSubject.asObservable();
 
   constructor() {
-    merge(interval(10000).pipe(startWith(0)), this.manualCheck$)
+    // UPDATED: Changed the interval from 10000 to 5000 ms to match the Flutter heartbeat timing!
+    merge(interval(5000).pipe(startWith(0)), this.manualCheck$)
       .pipe(
         withLatestFrom(this.phoneBusy$),
         exhaustMap(([, phoneBusy]) => this.pollOnce(phoneBusy))
@@ -209,13 +189,29 @@ export class FileService {
   private patchStatus(patch: Partial<ConnectionStatus>): void {
     this.statusSubject.next({ ...this.statusSubject.value, ...patch });
   }
+
   refreshPhoneServer(): Observable<{
     connected: boolean;
     phoneServerUrl: string | null;
     phoneServerToken: string | null;
   }> {
-    // Add a unique timestamp string to the end of the URL path to bypass the browser cache
+    // 1. Add a unique timestamp string to the end of the URL path to bypass the browser cache
     const cacheBuster = `?cb=${new Date().getTime()}`;
+
+    // 2. Fetch the token directly from local storage matching your authInterceptor key
+    const token = localStorage.getItem('localbridge_token');
+
+    // 3. Prepare headers configuration with cache disabling commands
+    const headersConfig: { [header: string]: string } = {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    };
+
+    // 4. Critical Fix: Inject the token under X-Session-Id so the Java controller validates the session fallback!
+    if (token) {
+      headersConfig['X-Session-Id'] = token;
+    }
 
     return this.http
       .get<{
@@ -223,18 +219,14 @@ export class FileService {
         phoneServerUrl: string | null;
         phoneServerToken: string | null;
       }>(`/api/phone/status${cacheBuster}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          Pragma: 'no-cache',
-          Expires: '0',
-        },
+        headers: new HttpHeaders(headersConfig),
       })
       .pipe(
         // Bounded so pollOnce() can never hang indefinitely - see the
         // exhaustMap note on the constructor's poller above.
         timeout(FileService.STATUS_TIMEOUT_MS),
         tap((status) => {
-          // Updated to use Local Time string so it matches your Flutter log format!
+          // Output matching local time structure
           console.log(
             `[${new Date().toLocaleString()}] Phone server status refreshed:`,
             status
@@ -318,12 +310,14 @@ export class FileService {
     if (path) {
       params = params.set('path', path);
     }
+
     const endpoint =
       source === 'phone' && this.phoneServerUrl
         ? `${this.phoneServerUrl}/browse`
         : source === 'phone'
         ? '/api/phone/list'
         : this.apiUrl;
+
     if (source === 'phone' && this.phoneServerUrl) {
       params = this.phoneParams(params);
     }
@@ -414,6 +408,7 @@ export class FileService {
     const url = this.getDownloadUrl(path, source);
     const fileName = decodeURIComponent(path.split('/').pop() || 'download');
     const savePicker = (window as any).showSaveFilePicker;
+
     if (typeof savePicker !== 'function') {
       const link = document.createElement('a');
       link.href = url;
@@ -426,11 +421,13 @@ export class FileService {
     if (!response.ok || !response.body) {
       throw new Error('The download did not return a file.');
     }
+
     const total = Number(response.headers.get('content-length')) || 0;
     const handle = await savePicker({ suggestedName: fileName });
     const writable = await handle.createWritable();
     const reader = response.body.getReader();
     let received = 0;
+
     try {
       while (true) {
         const chunk = await reader.read();
@@ -447,14 +444,12 @@ export class FileService {
     }
   }
 
-  uploadFile(path: string, file: File): Observable<HttpEvent<any>> {
+  uploadFile(path: string, file: File): Observable<HttpEvent<unknown>> {
     const formData = new FormData();
     formData.append('file', file);
-
     let params = new HttpParams();
     params = params.set('path', path || 'LocalBridge');
-
-    return this.http.post<any>('/api/files/upload', formData, {
+    return this.http.post('/api/files/upload', formData, {
       params,
       reportProgress: true,
       observe: 'events',
@@ -464,12 +459,14 @@ export class FileService {
   startUpload(path: string, file: File, destination: 'pc' | 'phone'): boolean {
     if (this.transferBusy) return false;
     this.beginTransfer('upload', file.name);
+
     const request =
       destination === 'pc'
         ? this.uploadFile(path, file)
         : this.refreshPhoneServer().pipe(
             switchMap(() => this.uploadToPhone(file, path))
           );
+
     this.transferSubscription = request.subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
@@ -490,6 +487,7 @@ export class FileService {
     if (this.transferBusy) return false;
     const fileName = decodeURIComponent(path.split('/').pop() || 'download');
     this.beginTransfer('download', fileName);
+
     this.saveDownload(path, source, (progress) => this.updateTransfer(progress))
       .then(() => {
         this.lastPhoneServerSuccessAt = Date.now();
@@ -503,10 +501,8 @@ export class FileService {
 
   cancelTransfer(): void {
     if (!this.transferBusy) return;
-
     this.transferSubscription?.unsubscribe();
     this.transferSubscription = undefined;
-
     this.transferSubject.next({
       active: false,
       kind: null,
