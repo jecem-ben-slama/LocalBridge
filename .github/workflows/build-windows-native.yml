@@ -6,15 +6,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build-native-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     env:
-      JAVA_VERSION: "21"
+      JAVA_VERSION: "25"
 
     steps:
       - name: Checkout
@@ -26,7 +23,6 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: "graalvm"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache: "maven"
 
       - name: Verify native-image is available
         shell: pwsh
@@ -45,25 +41,12 @@ jobs:
       - name: Build Spring Boot native executable
         working-directory: ./localbridge
         shell: bash
-        run: |
-          TAG_VER="${{ github.ref_name }}"
-          if [ -z "$TAG_VER" ]; then TAG_VER="v0.0.0-dev"; fi
-          ./mvnw.cmd -B -DskipTests -Pnative clean package -Dapp.version="$TAG_VER"
-
-      - name: Verify native executable was produced
-        shell: pwsh
-        run: |
-          $exe = Join-Path "${{ github.workspace }}" "localbridge\target\localbridge.exe"
-          if (!(Test-Path $exe)) {
-            Write-Error "Native build did not produce $exe"
-            Get-ChildItem (Join-Path "${{ github.workspace }}" "localbridge\target")
-            exit 1
-          }
+        run: ./mvnw.cmd -DskipTests -Pnative clean native:compile
 
       - name: Write version file
         shell: pwsh
         run: |
-          $version = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "v0.0.0-dev" }
+          $version = "${{ github.ref_name }}"
           Set-Content -Path "${{ github.workspace }}\VERSION.txt" -Value $version -NoNewline
 
       - name: Create launcher script
@@ -81,6 +64,7 @@ jobs:
           if not exist "%EXE%" (
               echo ERROR: localbridge.exe was not found next to this launcher.
               echo Expected file: %EXE%
+              echo Put the generated executable in the same folder as this script and try again.
               pause
               exit /b 1
           )
@@ -90,18 +74,16 @@ jobs:
               set /p CURRENT_VERSION=<"%VERFILE%"
           )
 
-          powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+          powershell -NoProfile -Command ^
               "try { " ^
-              "  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " ^
-              "  $resp = Invoke-RestMethod -Uri 'https://api.github.com/repos/%REPO%/releases/latest' -TimeoutSec 3 -ErrorAction SilentlyContinue; " ^
-              "  $latest = $resp.tag_name; " ^
+              "  $latest = (Invoke-RestMethod -Uri 'https://api.github.com/repos/%REPO%/releases/latest' -TimeoutSec 3).tag_name; " ^
               "  if ($latest -and ($latest -ne '%CURRENT_VERSION%')) { " ^
-              "    Write-Host '' -ForegroundColor Yellow; " ^
+              "    Write-Host ''; " ^
               "    Write-Host '=====================================================' -ForegroundColor Yellow; " ^
-              "    Write-Host \"  A new version is available: $latest (Installed: %CURRENT_VERSION%)\" -ForegroundColor Yellow; " ^
+              "    Write-Host \"  A new version is available: $latest (you have %CURRENT_VERSION%)\" -ForegroundColor Yellow; " ^
               "    Write-Host \"  Download: https://github.com/%REPO%/releases/latest\" -ForegroundColor Yellow; " ^
               "    Write-Host '=====================================================' -ForegroundColor Yellow; " ^
-              "    Write-Host '' -ForegroundColor Yellow; " ^
+              "    Write-Host ''; " ^
               "  } " ^
               "} catch { }"
 
@@ -145,7 +127,6 @@ jobs:
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: localbridge-windows-bundle.zip
         env:
