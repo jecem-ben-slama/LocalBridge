@@ -14,7 +14,7 @@ jobs:
     runs-on: windows-2022
 
     env:
-      JAVA_VERSION: "25"
+      JAVA_VERSION: "21"
 
     steps:
       - name: Checkout
@@ -26,6 +26,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: "graalvm"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
 
       - name: Verify native-image is available
         shell: pwsh
@@ -47,7 +48,17 @@ jobs:
         run: |
           TAG_VER="${{ github.ref_name }}"
           if [ -z "$TAG_VER" ]; then TAG_VER="v0.0.0-dev"; fi
-          ./mvnw.cmd -DskipTests -Pnative clean package -Dapp.version="$TAG_VER"
+          ./mvnw.cmd -B -DskipTests -Pnative clean package -Dapp.version="$TAG_VER"
+
+      - name: Verify native executable was produced
+        shell: pwsh
+        run: |
+          $exe = Join-Path "${{ github.workspace }}" "localbridge\target\localbridge.exe"
+          if (!(Test-Path $exe)) {
+            Write-Error "Native build did not produce $exe"
+            Get-ChildItem (Join-Path "${{ github.workspace }}" "localbridge\target")
+            exit 1
+          }
 
       - name: Write version file
         shell: pwsh
