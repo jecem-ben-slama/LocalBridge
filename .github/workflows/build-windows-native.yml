@@ -47,7 +47,7 @@ jobs:
         run: |
           TAG_VER="${{ github.ref_name }}"
           if [ -z "$TAG_VER" ]; then TAG_VER="v0.0.0-dev"; fi
-          ./mvnw.cmd -DskipTests -Pnative clean native:compile -Dapp.version="$TAG_VER"
+          ./mvnw.cmd -DskipTests -Pnative clean package -Dapp.version="$TAG_VER"
 
       - name: Write version file
         shell: pwsh
