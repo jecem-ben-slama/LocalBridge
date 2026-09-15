@@ -86,7 +86,6 @@
                         <configuration>
                             <imageName>localbridge</imageName>
                             <mainClass>com.localbridge.LocalbridgeApplication</mainClass>
-                            <classesDirectory>${project.build.outputDirectory}</classesDirectory>
                             <buildArgs>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                             </buildArgs>
@@ -96,7 +95,7 @@
                                 <id>build-native</id>
                                 <phase>package</phase>
                                 <goals>
-                                    <goal>compile</goal>
+                                    <goal>compile-no-fork</goal>
                                 </goals>
                             </execution>
                         </executions>
@@ -105,4 +104,5 @@
             </build>
         </profile>
     </profiles>
+
 </project>
