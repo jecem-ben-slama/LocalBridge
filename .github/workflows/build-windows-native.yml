@@ -24,13 +24,25 @@ jobs:
 
       - name: Build Flutter APK
         working-directory: ./localbridge_mobile
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/app/outputs/symbols --tree-shake-icons
+
+      # Renames the file strictly to LocalBridge-vtag.apk
+      - name: Rename APK File with Tag
+        working-directory: ./localbridge_mobile/build/app/outputs/flutter-apk
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="manual"
+          fi
+          mv app-arm64-v8a-release.apk "LocalBridge-${TAG_NAME}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: localbridge-android
-          path: localbridge_mobile/build/app/outputs/flutter-apk/app-release.apk
+          # Wildcard handles the tag name dynamically
+          path: localbridge_mobile/build/app/outputs/flutter-apk/LocalBridge-*.apk
           if-no-files-found: error
 
   build-native-windows:
@@ -185,6 +197,7 @@ jobs:
         with:
           files: |
             release-files/localbridge-windows-bundle.zip
-            release-files/app-release.apk
+            # Targets the clean LocalBridge-vtag.apk pattern seamlessly
+            release-files/LocalBridge-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

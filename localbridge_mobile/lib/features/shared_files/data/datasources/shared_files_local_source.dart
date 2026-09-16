@@ -17,14 +17,23 @@ class SharedFilesLocalSourceImpl implements SharedFilesLocalSource {
     final files = <SharedFile>[];
     await for (final entity in root.list(followLinks: false)) {
       if (entity is! File) continue;
+
+      final fileName = entity.uri.pathSegments.last;
+
+      // Skip trashed or hidden files
+      if (fileName.contains('.trashed') || fileName.startsWith('.')) {
+        continue;
+      }
+
       final modified = (await entity.stat()).modified;
       files.add(
         SharedFile(
-          name: entity.uri.pathSegments.last,
+          name: fileName,
           path: entity.path,
           modified: modified,
-          //size ??
-          size: entity.readAsBytes.toString()
+          // Note: entity.readAsBytes is a function reference. 
+          // If you need the actual file size in bytes, use: (await entity.length()).toString()
+          size: await entity.length().then((len) => len.toString()),
         ),
       );
     }
