@@ -1,10 +1,14 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { catchError, switchMap, tap } from 'rxjs/operators';
 import { BrowserStorageService } from './browser-storage.service';
 import { DeviceIdService } from './device-id.service';
-import { SessionId, SessionCreateResponse, SessionCreateRequest } from 'src/app/model/session.model';
+import {
+  SessionId,
+  SessionCreateResponse,
+  SessionCreateRequest,
+} from 'src/app/model/session.model';
 
 const SESSION_ID_KEY = 'localbridge_session_id';
 
@@ -34,23 +38,27 @@ export class SessionService {
     return this.sessionId$.asObservable();
   }
 
-  createSession(deviceName = 'Angular Web App'): Observable<SessionCreateResponse> {
+  createSession(
+    deviceName = 'Angular Web App'
+  ): Observable<SessionCreateResponse> {
     const payload: SessionCreateRequest = {
       deviceId: this.deviceId.getOrCreate(),
       deviceName,
     };
 
-    return this.http.post<SessionCreateResponse>('/api/session/create', payload).pipe(
-      tap((response) => {
-        if (response.sessionId) {
-          this.setSessionId(response.sessionId);
-        }
-      }),
-      catchError((error) => {
-        console.error('[SessionService] Failed to create session:', error);
-        return throwError(() => error);
-      })
-    );
+    return this.http
+      .post<SessionCreateResponse>('/api/session/create', payload)
+      .pipe(
+        tap((response) => {
+          if (response.sessionId) {
+            this.setSessionId(response.sessionId);
+          }
+        }),
+        catchError((error) => {
+          console.error('[SessionService] Failed to create session:', error);
+          return throwError(() => error);
+        })
+      );
   }
 
   setSessionId(sessionId: SessionId): void {
@@ -64,21 +72,41 @@ export class SessionService {
   }
 
   refreshSession(): Observable<unknown> {
+    const sessionId = this.getSessionId();
+    const headers = sessionId
+      ? new HttpHeaders({ 'X-Session-Id': sessionId })
+      : undefined;
+
     return this.http
-      .post('/api/session/refresh', {})
+      .post('/api/session/refresh', {}, { headers })
       .pipe(catchError((error) => this.handleAuthError(error)));
   }
 
   heartbeat(): Observable<unknown> {
+    const sessionId = this.getSessionId();
+    const headers = sessionId
+      ? new HttpHeaders({ 'X-Session-Id': sessionId })
+      : undefined;
+
     return this.http
-      .get('/api/session/heartbeat')
+      .get('/api/session/heartbeat', { headers })
       .pipe(catchError((error) => this.handleAuthError(error)));
   }
 
   closeSession(): Observable<unknown> {
-    return this.http.post('/api/session/close', {}).pipe(
-      tap(() => this.clearSessionId()),
-      catchError((error) => throwError(() => error))
+    const sessionId = this.getSessionId();
+    const headers = sessionId
+      ? new HttpHeaders({ 'X-Session-Id': sessionId })
+      : undefined;
+
+    // Clear locally right away so state updates immediately
+    this.clearSessionId();
+
+    return this.http.post('/api/session/close', {}, { headers }).pipe(
+      catchError((error) => {
+        console.error('[SessionService] Failed during session close:', error);
+        return throwError(() => error);
+      })
     );
   }
 

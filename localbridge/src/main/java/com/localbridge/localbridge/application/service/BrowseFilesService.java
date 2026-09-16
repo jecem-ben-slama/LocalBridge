@@ -19,9 +19,14 @@ public class BrowseFilesService implements BrowseFilesUseCase {
 
     @Override
     public List<FileNode> getDirectoryContents(String subPath) throws IOException {
+        // Intercept root requests to show "This PC" (machine drives)
+        if (subPath == null || subPath.trim().isEmpty() || subPath.equals("/") || subPath.equalsIgnoreCase("ROOT")) {
+            return fileStoragePort.listRootDrives();
+        }
         return fileStoragePort.listDirectory(subPath);
     }
 
+    @Override
     public void uploadFile(String subPath, MultipartFile file) throws IOException {
         fileStoragePort.saveFile(subPath, file);
     }

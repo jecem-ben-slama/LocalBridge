@@ -51,17 +51,31 @@ public class PhoneFileController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<?> status(
-            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
+    public ResponseEntity<?> status() {
         Map<String, Object> status = new LinkedHashMap<>();
         boolean connected = relayService.isPhoneConnected();
-        if (!connected && sessionId != null && !sessionId.isEmpty()) {
+        if (!connected) {
+            // Deliberately check the PHONE's own tracked session
+            // (relayService.getPhoneSessionId()), never whatever
+            // X-Session-Id happens to be on *this* request. This endpoint
+            // is polled by both the web app and the phone, each carrying
+            // its own, unrelated session/token. Falling back to "is
+            // *some* session valid" (the caller's own) meant the web
+            // browser's own long-lived pairing session - never touched by
+            // Disconnect - kept re-validating "connected" on its very
+            // next poll after a real disconnect, regardless of whether
+            // the phone was actually there.
+            //
             // relayService's clock only reflects the reverse (phone-files)
-            // relay and has no visibility into PC-file browsing at all.
-            // Fall back to the PC-browsing session's own activity tracking
-            // so status doesn't flip to "disconnected" mid-browse just
-            // because the relay's 30s poll window lapsed.
-            connected = sessionService.isSessionValid(sessionId);
+            // relay and has no visibility into PC-file browsing at all, so
+            // this still exists to avoid status flapping to
+            // "disconnected" mid-browse just because the relay's poll
+            // window lapsed - it just has to be scoped to the phone's own
+            // session to mean anything.
+            String phoneSessionId = relayService.getPhoneSessionId();
+            if (phoneSessionId != null && !phoneSessionId.isEmpty()) {
+                connected = sessionService.isSessionValid(phoneSessionId);
+            }
         }
         status.put("connected", connected);
         status.put("phoneServerUrl", relayService.getPhoneServerUrl());
@@ -70,9 +84,11 @@ public class PhoneFileController {
     }
 
     @PostMapping("/server")
-    public ResponseEntity<?> registerPhoneServer(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> registerPhoneServer(
+            @RequestBody Map<String, String> payload,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
         try {
-            relayService.registerPhoneServer(payload.get("url"), payload.get("token"));
+            relayService.registerPhoneServer(payload.get("url"), payload.get("token"), sessionId);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -94,7 +110,27 @@ public class PhoneFileController {
 
     @PostMapping("/disconnect")
     public ResponseEntity<?> disconnectPhone() {
+        // Capture the phone's own session BEFORE clearing relay state -
+        // relayService.disconnect() wipes phoneSessionId along with
+        // phoneServerUrl/token.
+        String phoneSessionId = relayService.getPhoneSessionId();
         relayService.disconnect();
+
+        // relayService.disconnect() only clears backend-side bookkeeping;
+        // it has no channel to reach a phone running in direct-server mode
+        // (it isn't polling any relay command queue - see
+        // PhoneHttpRelayService's phoneSessionId comment). Closing its
+        // session is what actually reaches it: the phone's own heartbeat
+        // loop will get back active: false and self-disconnect via
+        // ConnectionRemoteSourceImpl's existing onSessionExpired handler,
+        // which stops its local HTTP server for us.
+        if (phoneSessionId != null && !phoneSessionId.isEmpty()) {
+            try {
+                sessionService.closeSession(phoneSessionId);
+            } catch (Exception ignored) {
+                // Best-effort - the relay is already disconnected either way.
+            }
+        }
         return ResponseEntity.ok(Map.of("success", true));
     }
 

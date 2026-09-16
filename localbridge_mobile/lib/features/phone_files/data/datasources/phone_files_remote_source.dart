@@ -84,10 +84,17 @@ class PhoneFilesRemoteSourceImpl implements PhoneFilesRemoteSource {
     required File file,
     required void Function(int sent, int total) onProgress,
   }) async {
-    final uri = Uri.parse(_apiService.baseUrl).replace(
-      path: '/api/files/upload',
-      queryParameters: const {'path': 'LocalBridge'},
-    );
+    // NOTE: this must hit PhoneFileController's dedicated endpoint
+    // (/api/phone/upload), not FileController's /api/files/upload.
+    // The latter resolves `path` against the general PC-browsing root
+    // and does not create missing directories, so a phone push to a
+    // not-yet-existing "LocalBridge" folder there fails. The phone
+    // endpoint resolves against `uploadedPhoneRoot` and calls
+    // Files.createDirectories(...) before writing, and defaults to
+    // that root when no `path` is supplied.
+    final uri = Uri.parse(
+      _apiService.baseUrl,
+    ).replace(path: '/api/phone/upload');
     await _backgroundTransfers.upload(
       url: uri,
       file: file,

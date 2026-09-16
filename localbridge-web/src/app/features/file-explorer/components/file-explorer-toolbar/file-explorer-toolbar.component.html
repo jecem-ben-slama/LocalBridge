@@ -1,12 +1,22 @@
 <div
-    class="flex flex-col gap-3 rounded-2xl border border-bridge-border bg-bridge-card/80 p-3 shadow-sm shadow-bridge-darkest/20 backdrop-blur-sm sm:gap-4 sm:p-4 md:p-5">
-    <!-- Top Navigation & Action Bar -->
-    <div class="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+    class="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-bridge-border/80 bg-bridge-card p-4 shadow-xl shadow-bridge-darkest/30 sm:p-5">
 
-        <!-- Title & Location Info -->
-        <div class="flex items-center gap-2.5 sm:gap-3">
-            <button *ngIf="pathHistoryLength > 0" (click)="goBack.emit()" type="button" aria-label="Go back"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-2.5 py-2 text-sm font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text focus:outline-none focus:ring-2 focus:ring-bridge-primary/40 sm:px-3.5">
+    <!-- Subtle surface accent -->
+    <div
+        class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-bridge-primary/35 to-transparent">
+    </div>
+
+    <!-- Header & Actions Bar -->
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+        <!-- Title & Path Breadcrumb Section -->
+        <div class="flex min-w-0 items-center gap-3">
+
+            <!-- Back Arrow -->
+            <button type="button" (click)="goBack.emit()" [disabled]="pathHistoryLength === 0"
+                [attr.aria-label]="pathHistoryLength > 0 ? 'Go back' : 'No previous folder'"
+                [title]="pathHistoryLength > 0 ? 'Go back' : 'No previous folder'"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-bridge-border/80 bg-bridge-dark px-3 py-2 text-xs font-semibold text-bridge-text-secondary transition-all duration-150 hover:border-bridge-primary/40 hover:bg-bridge-elevated hover:text-bridge-text active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-bridge-border disabled:hover:bg-bridge-dark disabled:hover:text-bridge-text-secondary sm:text-sm">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -15,104 +25,563 @@
             </button>
 
             <div class="min-w-0">
-                <h1 class="truncate text-lg font-bold tracking-tight text-bridge-text sm:text-xl md:text-2xl">
-                    {{ title || (source === 'pc' ? 'PC Files' : 'Phone Files') }}
-                </h1>
-                <p class="mt-0.5 truncate font-mono text-[11px] text-bridge-text-secondary sm:mt-1 sm:text-xs">
-                    Path: <span class="text-bridge-accent font-semibold">{{ currentPath || '/' }}</span>
-                </p>
+                <div class="flex items-center gap-2.5">
+                    <h1 class="truncate text-lg font-bold tracking-[-0.02em] text-bridge-text sm:text-xl md:text-2xl">
+                        {{ title || (source === 'pc' ? 'PC Files' : 'Phone Files') }}
+                    </h1>
+
+                    <span
+                        class="rounded-md border border-bridge-primary/20 bg-bridge-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-bridge-primary">
+                        {{ source }}
+                    </span>
+                </div>
+
+                <!-- Breadcrumb Path -->
+                <div class="mt-1 flex min-w-0 items-center gap-1 overflow-x-auto rounded-md no-scrollbar">
+
+                    <button type="button" (click)="onBreadcrumbClick('')" [disabled]="!currentPath"
+                        class="shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-medium text-bridge-accent transition hover:bg-bridge-dark/60 disabled:cursor-default disabled:text-bridge-text disabled:hover:bg-transparent sm:text-xs">
+                        Root
+                    </button>
+
+                    <ng-container *ngFor="let segment of pathSegments; let last = last">
+
+                        <span class="shrink-0 text-[11px] text-bridge-muted-dark sm:text-xs">
+                            /
+                        </span>
+
+                        <button type="button" (click)="onBreadcrumbClick(segment.path)" [disabled]="last"
+                            class="shrink-0 truncate rounded px-1.5 py-0.5 font-mono text-[11px] font-medium transition hover:bg-bridge-dark/60 disabled:cursor-default sm:text-xs"
+                            [ngClass]="last ? 'text-bridge-text disabled:hover:bg-transparent' : 'text-bridge-accent'">
+                            {{ segment.label }}
+                        </button>
+
+                    </ng-container>
+                </div>
             </div>
         </div>
 
-        <!-- Actions & Source Controls -->
+        <!-- Actions & View Controls -->
         <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
 
-            <!-- Source Toggle (PC vs Phone) -->
-            <div class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-dark p-1">
+            <!-- Device Switcher -->
+            <div class="flex items-center rounded-lg border border-bridge-border/80 bg-bridge-dark p-0.5">
+
                 <button type="button" (click)="selectSource.emit('pc')"
-                    [ngClass]="source === 'pc' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
-                    class="rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm">
+                    [ngClass]="source === 'pc' ? 'bg-bridge-primary text-white shadow-sm shadow-bridge-primary/25 font-semibold' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-md px-3.5 py-1.5 text-xs transition-all duration-150 sm:px-4 sm:text-sm">
                     PC
                 </button>
+
                 <button type="button" (click)="selectSource.emit('phone')"
-                    [ngClass]="source === 'phone' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
-                    class="rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 sm:px-4 sm:text-sm">
+                    [ngClass]="source === 'phone' ? 'bg-bridge-primary text-white shadow-sm shadow-bridge-primary/25 font-semibold' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-md px-3.5 py-1.5 text-xs transition-all duration-150 sm:px-4 sm:text-sm">
                     Phone
                 </button>
+
             </div>
 
-            <!-- Single Upload Button (Label depends on active tab) -->
-            <button (click)="uploadToPhone.emit()" [disabled]="transferBusy || isUploading" type="button"
-                [attr.aria-label]="isUploading ? 'Uploading...' : (source === 'pc' ? 'Upload to Phone' : 'Upload here')"
-                class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-bridge-primary to-bridge-accent px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-bridge-primary/20 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="hidden h-5 w-px bg-bridge-border/70 sm:block"></div>
+
+            <!-- Quick Links Toggle -->
+            <button type="button" (click)="toggleQuickLinks()"
+                [ngClass]="isQuickLinksOpen ? 'border-bridge-primary/40 text-bridge-primary bg-bridge-primary/10 shadow-sm shadow-bridge-primary/10' : 'border-bridge-border text-bridge-text-secondary bg-bridge-dark/80 hover:text-bridge-text'"
+                class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all duration-150 active:scale-[.98] sm:py-2.5 sm:text-sm">
+
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span class="hidden sm:inline">{{ isUploading ? 'Uploading...' : (source === 'pc' ? 'Upload to Phone' :
-                    'Upload here') }}</span>
-                <span class="sm:hidden">{{ isUploading ? '...' : 'Upload' }}</span>
+
+                <span class="hidden sm:inline">Shortcuts</span>
             </button>
 
-            <!-- Refresh Button -->
-            <button (click)="refresh.emit()" [disabled]="isLoading" type="button" aria-label="Refresh"
-                class="inline-flex items-center gap-1.5 rounded-full border border-bridge-border bg-bridge-dark px-2.5 py-2 text-xs font-medium text-bridge-text-secondary transition hover:border-bridge-primary/40 hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2.5 sm:text-sm">
+            <!-- Refresh -->
+            <button type="button" (click)="refresh.emit()" [disabled]="isLoading" aria-label="Refresh"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-bridge-border/80 bg-bridge-dark px-2.5 py-2 text-xs font-medium text-bridge-text-secondary transition-all duration-150 hover:border-bridge-primary/40 hover:bg-bridge-elevated hover:text-bridge-text disabled:cursor-not-allowed disabled:opacity-50 sm:px-3.5 sm:py-2.5 sm:text-sm">
+
                 <svg [class.animate-spin]="isLoading" class="h-4 w-4" fill="none" stroke="currentColor"
                     viewBox="0 0 24 24">
+
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+
                 </svg>
+
                 <span class="hidden sm:inline">Refresh</span>
             </button>
 
-            <!-- View Switcher (List / Grid) -->
-            <div class="flex items-center gap-1 rounded-full border border-bridge-border bg-bridge-dark p-1">
+            <div class="hidden h-5 w-px bg-bridge-border/70 sm:block"></div>
+
+            <!-- Upload Button -->
+            <button type="button" (click)="uploadToPhone.emit()" [disabled]="transferBusy || isUploading"
+                [attr.aria-label]="isUploading ? 'Uploading...' : (source === 'pc' ? 'Upload to Phone' : 'Upload here')"
+                class="inline-flex items-center gap-2 rounded-lg bg-bridge-primary px-3.5 py-2 text-xs font-bold text-slate-950 shadow-sm shadow-bridge-primary/20 transition-all duration-150 hover:bg-bridge-primary/90 hover:shadow-md hover:shadow-bridge-primary/20 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:py-2.5 sm:text-sm">
+
+                <svg *ngIf="!isUploading" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+
+                </svg>
+
+                <svg *ngIf="isUploading" class="h-4 w-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                    </circle>
+
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z">
+                    </path>
+
+                </svg>
+
+                <span class="hidden sm:inline">
+                    {{ isUploading ? 'Uploading...' : (source === 'pc' ? 'Upload to Phone' : 'Upload here') }}
+                </span>
+
+                <span class="sm:hidden">
+                    {{ isUploading ? '...' : 'Upload' }}
+                </span>
+
+            </button>
+
+            <!-- View Switcher -->
+            <div class="flex items-center rounded-lg border border-bridge-border/80 bg-bridge-dark p-0.5">
+
                 <button type="button" (click)="setViewMode.emit('list')"
-                    [ngClass]="viewMode === 'list' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
-                    class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-all duration-200 sm:px-3 sm:text-sm">
-                    List
+                    [ngClass]="viewMode === 'list' ? 'bg-bridge-elevated text-bridge-primary font-bold shadow-sm shadow-black/10' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-md p-1.5 transition-all duration-150 sm:px-2.5" aria-label="List view">
+
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+
+                    </svg>
+
                 </button>
+
                 <button type="button" (click)="setViewMode.emit('grid')"
-                    [ngClass]="viewMode === 'grid' ? 'bg-bridge-primary text-white shadow-md' : 'text-bridge-text-secondary hover:text-bridge-text'"
-                    class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-all duration-200 sm:px-3 sm:text-sm">
-                    Grid
+                    [ngClass]="viewMode === 'grid' ? 'bg-bridge-elevated text-bridge-primary font-bold shadow-sm shadow-black/10' : 'text-bridge-text-secondary hover:text-bridge-text'"
+                    class="rounded-md p-1.5 transition-all duration-150 sm:px-2.5" aria-label="Grid view">
+
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+
+                    </svg>
+
                 </button>
+
             </div>
 
         </div>
     </div>
 
-    <!-- Search & Filter Controls -->
-    <div class="flex flex-col gap-2.5 sm:gap-3 md:flex-row md:items-center md:justify-between">
+    <!-- Dynamic Quick Access Links Section -->
+    <div *ngIf="isQuickLinksOpen"
+        class="flex flex-col gap-3 rounded-xl border border-bridge-border/70 bg-bridge-dark/45 p-3.5 shadow-inner shadow-black/10 transition-all">
 
-        <!-- Search Bar -->
-        <div class="relative w-full md:max-w-md">
-            <span class="sr-only">Search files</span>
-            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-                <svg class="h-4 w-4 text-bridge-muted-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+        <div class="flex items-center justify-between px-1">
+
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-bridge-muted">
+                Quick Access · {{ source === 'pc' ? 'PC' : 'Phone' }}
+            </span>
+
+            <div class="flex items-center gap-2 text-xs">
+
+                <button *ngIf="currentPath" type="button" (click)="openAddModal(true)"
+                    class="rounded-md px-1.5 py-1 text-[11px] font-semibold text-bridge-primary transition hover:bg-bridge-primary/10">
+                    + Pin Current Path
+                </button>
+
+                <span *ngIf="currentPath" class="text-bridge-muted-dark">
+                    |
+                </span>
+
+                <button type="button" (click)="openAddModal(false)"
+                    class="rounded-md px-1.5 py-1 text-[11px] font-semibold text-bridge-accent transition hover:bg-bridge-accent/10">
+                    + Add Shortcut
+                </button>
+
             </div>
-            <input type="text" [value]="searchTerm" (input)="searchTermChange.emit($any($event.target).value)"
-                placeholder="Search files..."
-                class="w-full rounded-full border border-bridge-border bg-bridge-dark pl-10 pr-4 py-2 text-sm text-bridge-text placeholder:text-bridge-muted-dark focus:border-bridge-primary/60 focus:outline-none focus:ring-1 focus:ring-bridge-primary/60 transition" />
         </div>
 
-        <!-- Category Filter Dropdown -->
-        <label class="flex items-center gap-2.5 text-sm text-bridge-text-secondary">
-            <span class="font-medium">Type</span>
+        <!-- Empty State -->
+        <div *ngIf="filteredQuickLinks.length === 0"
+            class="rounded-lg border border-dashed border-bridge-border/70 bg-bridge-card/30 px-3 py-2.5 text-xs text-bridge-muted">
+
+            No {{ source === 'pc' ? 'PC' : 'phone' }} shortcuts yet.
+            Click "+ Add Shortcut" or "+ Pin Current Path" to add one.
+
+        </div>
+
+        <!-- Shortcuts List -->
+        <div *ngIf="filteredQuickLinks.length > 0" class="no-scrollbar flex items-center gap-2 overflow-x-auto pb-0.5">
+
+            <div *ngFor="let link of filteredQuickLinks" class="group relative flex shrink-0 items-center">
+
+                <button type="button" (click)="onQuickLinkClick(link.path)"
+                    class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-bridge-border/80 bg-bridge-card py-1.5 pl-3 pr-7 text-xs font-medium text-bridge-text-secondary transition-all duration-150 hover:border-bridge-primary/40 hover:bg-bridge-elevated hover:text-bridge-text active:scale-[.98]">
+
+                    <!-- Dynamic Icon Renderer -->
+                    <ng-container [ngSwitch]="link.icon">
+
+                        <svg *ngSwitchCase="'share'" class="h-3.5 w-3.5 text-bridge-primary" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'desktop'" class="h-3.5 w-3.5 text-bridge-accent" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'download'" class="h-3.5 w-3.5 text-emerald-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'document'" class="h-3.5 w-3.5 text-amber-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'image'" class="h-3.5 w-3.5 text-rose-400" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'video'" class="h-3.5 w-3.5 text-purple-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'music'" class="h-3.5 w-3.5 text-indigo-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 0 3 2zM9 10l12-3" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'star'" class="h-3.5 w-3.5 text-yellow-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'bookmark'" class="h-3.5 w-3.5 text-cyan-400" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+
+                        </svg>
+
+                        <svg *ngSwitchCase="'link'" class="h-3.5 w-3.5 text-teal-400" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+
+                        </svg>
+
+                        <svg *ngSwitchDefault class="h-3.5 w-3.5 text-sky-400" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+
+                        </svg>
+
+                    </ng-container>
+
+                    <span>{{ link.label }}</span>
+
+                </button>
+
+                <!-- Delete Icon Button -->
+                <button type="button" (click)="deleteShortcut(link.id, $event)" title="Delete shortcut"
+                    class="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1 text-bridge-muted opacity-0 transition-all duration-150 group-hover:opacity-100 focus:opacity-100 hover:bg-red-500/15 hover:text-red-400">
+
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+
+                    </svg>
+
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div
+        class="flex flex-col gap-3 border-t border-bridge-border/60 pt-4 sm:gap-3.5 md:flex-row md:items-center md:justify-between">
+
+        <!-- Search Input -->
+        <div class="relative w-full md:max-w-lg">
+
+            <span class="sr-only">Search files</span>
+
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+
+                <svg class="h-4 w-4 text-bridge-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+
+                </svg>
+
+            </div>
+
+            <input type="text" [value]="searchTerm" (input)="searchTermChange.emit($any($event.target).value)"
+                placeholder="Search files or extensions..."
+                class="w-full rounded-lg border border-bridge-border/80 bg-bridge-dark py-2.5 pl-10 pr-9 text-sm text-bridge-text placeholder:text-bridge-muted transition-all duration-150 focus:border-bridge-primary/60 focus:bg-bridge-elevated focus:outline-none focus:ring-2 focus:ring-bridge-primary/10" />
+
+            <button *ngIf="searchTerm" type="button" (click)="clearSearch()" aria-label="Clear search"
+                class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-bridge-muted transition hover:text-bridge-text">
+
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+
+                </svg>
+
+            </button>
+        </div>
+
+        <!-- Category Dropdown Filter -->
+        <div class="flex items-center gap-3 rounded-lg text-sm text-bridge-text-secondary">
+
+            <span class="font-semibold text-[10px] uppercase tracking-[0.14em] text-bridge-muted">
+                Filter
+            </span>
+
             <select [value]="fileTypeFilter" (change)="fileTypeFilterChange.emit($any($event.target).value)"
-                class="w-full rounded-full border border-bridge-border bg-bridge-dark px-4 py-2 text-sm text-bridge-text focus:border-bridge-primary/60 focus:outline-none focus:ring-1 focus:ring-bridge-primary/60 transition cursor-pointer md:w-auto">
-                <option value="all">All</option>
+                class="w-full rounded-lg border border-bridge-border/80 bg-bridge-dark px-3.5 py-2.5 text-sm text-bridge-text transition-all duration-150 cursor-pointer focus:border-bridge-primary/60 focus:bg-bridge-elevated focus:outline-none focus:ring-2 focus:ring-bridge-primary/10 md:w-auto">
+
+                <option value="all">All Items</option>
+                <option value="folder">Folders</option>
+                <option value="file">Files</option>
                 <option value="image">Images</option>
                 <option value="video">Videos</option>
                 <option value="audio">Audio</option>
                 <option value="document">Documents</option>
-                <option value="folder">Folders</option>
-                <option value="file">Files</option>
-            </select>
-        </label>
 
+            </select>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- Create Shortcut Modal Dialog -->
+<div *ngIf="isAddModalOpen"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[3px]">
+
+    <div
+        class="w-full max-w-md rounded-2xl border border-bridge-border/80 bg-bridge-card p-5 shadow-2xl shadow-black/40 sm:p-6">
+
+        <div class="flex items-center justify-between border-b border-bridge-border-soft pb-4">
+
+            <h3 class="text-lg font-bold tracking-[-0.01em] text-bridge-text">
+                Add {{ source === 'pc' ? 'PC' : 'Phone' }} Shortcut
+            </h3>
+
+            <button (click)="closeAddModal()" type="button"
+                class="rounded-lg p-1.5 text-bridge-muted transition hover:bg-bridge-elevated hover:text-bridge-text">
+
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+
+                </svg>
+
+            </button>
+        </div>
+
+        <form (submit)="saveShortcut()" class="mt-5 space-y-5">
+
+            <!-- Shortcut Label -->
+            <div>
+
+                <label class="block text-[10px] font-bold uppercase tracking-[0.14em] text-bridge-muted">
+                    Label
+                </label>
+
+                <input type="text" [(ngModel)]="newLabel" name="shortcutLabel" placeholder="e.g. My Projects" required
+                    class="mt-1.5 w-full rounded-lg border border-bridge-border/80 bg-bridge-dark px-3.5 py-2.5 text-sm text-bridge-text transition focus:border-bridge-primary/60 focus:bg-bridge-elevated focus:outline-none focus:ring-2 focus:ring-bridge-primary/10" />
+
+                <p *ngIf="formError" class="mt-1.5 text-xs text-bridge-error">
+                    {{ formError }}
+                </p>
+
+            </div>
+
+            <!-- Target Path -->
+            <div>
+
+                <label class="block text-[10px] font-bold uppercase tracking-[0.14em] text-bridge-muted">
+                    Target Path
+                </label>
+
+                <input type="text" [(ngModel)]="newPath" name="shortcutPath"
+                    placeholder="e.g. C:\Users\Dev\Projects or relative path" required
+                    class="mt-1.5 w-full rounded-lg border border-bridge-border/80 bg-bridge-dark px-3.5 py-2.5 font-mono text-sm text-bridge-text transition focus:border-bridge-primary/60 focus:bg-bridge-elevated focus:outline-none focus:ring-2 focus:ring-bridge-primary/10" />
+
+            </div>
+
+            <!-- Icon Picker -->
+            <div>
+
+                <label class="mb-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-bridge-muted">
+                    Select Icon
+                </label>
+
+                <div class="grid grid-cols-4 gap-2.5">
+
+                    <button *ngFor="let iconOption of availableIcons" type="button" (click)="newIcon = iconOption.id"
+                        [ngClass]="newIcon === iconOption.id ? 'border-bridge-primary/70 bg-bridge-primary/10 text-bridge-primary shadow-sm shadow-bridge-primary/10' : 'border-bridge-border/80 bg-bridge-dark/60 text-bridge-muted hover:border-bridge-border hover:bg-bridge-elevated hover:text-bridge-text'"
+                        class="flex min-h-[58px] flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-[10px] font-medium transition-all duration-150 hover:-translate-y-px">
+
+                        <ng-container [ngSwitch]="iconOption.id">
+
+                            <svg *ngSwitchCase="'share'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'desktop'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'download'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'document'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'image'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'video'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'music'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'star'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'bookmark'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+
+                            </svg>
+
+                            <svg *ngSwitchCase="'link'" class="h-4 w-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+
+                            </svg>
+
+                            <svg *ngSwitchDefault class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+
+                            </svg>
+
+                        </ng-container>
+
+                        <span>{{ iconOption.name }}</span>
+
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex items-center justify-end gap-3 border-t border-bridge-border-soft pt-4">
+
+                <button type="button" (click)="closeAddModal()"
+                    class="rounded-lg border border-bridge-border/80 bg-bridge-dark px-4 py-2.5 text-xs font-semibold text-bridge-text-secondary transition hover:bg-bridge-elevated hover:text-bridge-text">
+                    Cancel
+                </button>
+
+                <button type="submit" [disabled]="!newLabel.trim() || !newPath.trim()"
+                    class="rounded-lg bg-bridge-primary px-4 py-2.5 text-xs font-bold text-slate-950 shadow-sm transition hover:bg-bridge-primary/90 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50">
+                    Save Shortcut
+                </button>
+
+            </div>
+
+        </form>
     </div>
 </div>

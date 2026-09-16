@@ -2,20 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
 import 'package:localbridge_mobile/features/pc_explorer/presentation/widgets/document_download_button.dart';
 
-import '../../domain/entities/document.dart';
-import 'document_thumbnail.dart';
-
-/// One row of PC Explorer's list view.
-/// 
-/// Extracted from `PcExplorerTab._buildListView`'s itemBuilder — see
-/// [DocumentGridTile] for the equivalent grid-view extraction; both used to
-/// independently decide "thumbnail vs icon" and reimplement the download
-/// button.
+import '../../../domain/entities/document.dart';
+import '../document_thumbnail.dart';
 class DocumentListTile extends StatelessWidget {
   final Document file;
   final String? thumbnailUrl;
   final Map<String, String> headers;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final VoidCallback? onDownload;
 
   const DocumentListTile({
@@ -24,6 +18,7 @@ class DocumentListTile extends StatelessWidget {
     required this.thumbnailUrl,
     required this.headers,
     required this.onTap,
+    this.onLongPress,
     required this.onDownload,
   });
 
@@ -37,6 +32,7 @@ class DocumentListTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
+        onLongPress: onLongPress,
         splashColor: colors.primary.withValues(alpha: 0.08),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

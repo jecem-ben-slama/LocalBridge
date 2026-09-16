@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
 
-/// Small download icon button used on both the grid tile (circular overlay)
-/// and the list tile (trailing icon) in PC Explorer. Previously each tile
-/// builder in `PcExplorerTab` reimplemented this inline.
 class DocumentDownloadButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool overlayStyle;

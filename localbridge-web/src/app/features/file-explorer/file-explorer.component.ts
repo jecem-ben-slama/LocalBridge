@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { interval, Subscription, switchMap, catchError, of } from 'rxjs';
+import { interval, Subscription, switchMap, catchError, of, take } from 'rxjs';
 import { FileService } from '../../core/services/file.service';
 import { FileNode } from 'src/app/model/filenode';
 import { FileEmptyStateComponent } from './components/file-empty-state/file-empty-state.component';
@@ -113,7 +113,6 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
             `${action} of ${file} finished successfully.`,
             'success'
           );
-          // Refresh folder listing after successful upload
           if (state.kind === 'upload') {
             this.refreshCurrentFolder();
           }
@@ -134,8 +133,31 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
   }
 
   loadFiles(path?: string) {
-    const requestVersion = ++this.directoryRequestVersion;
     const requestedSource = this.source;
+
+    if (requestedSource === 'phone') {
+      let isPhoneReady = true;
+
+      this.fileService.connectionStatus$.pipe(take(1)).subscribe((status) => {
+        if (!status.phoneConnected || !status.phoneServerLive) {
+          isPhoneReady = false;
+        }
+      });
+
+      if (!isPhoneReady) {
+        console.info(
+          'ℹ️ Cannot list phone files: The phone server is currently unreachable. Please ensure the LocalBridge app is open and active on your phone.'
+        );
+
+        this.files = [];
+        this.errorMessage =
+          'Phone is unreachable. Please open the app and try again.';
+        this.isLoading = false;
+        return;
+      }
+    }
+
+    const requestVersion = ++this.directoryRequestVersion;
     this.directoryRequest?.unsubscribe();
     this.isLoading = true;
     this.errorMessage = null;
@@ -175,13 +197,21 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
           ) {
             return;
           }
-          this.errorMessage =
+          const errorMsg =
             err.error?.message || 'Failed to load directory contents.';
+          console.info(`❌ Phone file listing failed: ${errorMsg}`);
+          this.errorMessage = errorMsg;
           this.isLoading = false;
         },
       });
   }
 
+  navigateToPath(path: string) {
+    if (this.currentPath !== path) {
+      this.pathHistory.push(this.currentPath);
+      this.loadFiles(path);
+    }
+  }
   refreshCurrentFolder() {
     this.loadFiles(this.currentPath || undefined);
   }
@@ -208,18 +238,10 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     if (!this.fileService.startDownload(node.path, this.source)) return;
   }
 
-  /**
-   * Sends an already-listed PC file into the phone's LocalBridge folder,
-   * by fetching it as a blob and reusing the same startUpload() pipeline
-   * that uploadToPhone() uses (progress/toast/refresh all come for free).
-   */
   async sendToPhone(node: FileNode, event?: MouseEvent) {
     event?.stopPropagation();
     if (this.fileService.transferBusy) return;
 
-    // Same target logic as uploadToPhone:
-    // browsing PC -> drop in phone's LocalBridge folder
-    // browsing Phone -> drop in current phone folder
     const targetPath = this.source === 'pc' ? 'LocalBridge' : this.currentPath;
 
     try {
@@ -278,12 +300,14 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.previewFile = null;
     this.previewUrl = null;
   }
+
   @HostListener('document:keydown.escape')
   onEscapeKey() {
     if (this.previewFile) {
       this.closePreview();
     }
   }
+
   selectSource(source: 'pc' | 'phone') {
     if (this.source === source) return;
     this.source = source;
@@ -345,9 +369,6 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     const selectedFiles: FileList = event.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
 
-    // Direct uploads to phone target:
-    // If browsing PC tab -> place in default 'Bridge' phone folder
-    // If browsing Phone tab -> place in current folder
     const targetPath = this.source === 'pc' ? 'LocalBridge' : this.currentPath;
 
     this.fileService.startUpload(targetPath, selectedFiles[0], 'phone');

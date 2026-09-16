@@ -241,6 +241,7 @@ void setupDependencies() {
       locator<StartFileUpload>(),
       locator<CancelTransfer>(),
       locator<WatchTransferStatus>(),
+      locator<WatchWebConnection>(),
     ),
   );
 }

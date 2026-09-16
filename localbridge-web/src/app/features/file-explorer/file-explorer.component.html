@@ -7,7 +7,8 @@
         [transferBusy]="fileService.transferBusy" [isUploading]="isUploading" [searchTerm]="searchTerm"
         [fileTypeFilter]="fileTypeFilter" (goBack)="goBack()" (selectSource)="selectSource($event)"
         (uploadToPhone)="phoneFileInput.click()" (refresh)="refreshCurrentFolder()" (setViewMode)="viewMode = $event"
-        (searchTermChange)="searchTerm = $event" (fileTypeFilterChange)="fileTypeFilter = $event">
+        (searchTermChange)="searchTerm = $event" (fileTypeFilterChange)="fileTypeFilter = $event"
+        (navigateToPath)="navigateToPath($event)">
     </app-file-explorer-toolbar>
 
     <app-file-transfer-progress *ngIf="downloadingFileName" title="Downloading" [fileName]="downloadingFileName"

@@ -34,11 +34,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      // Fetch our clean presentation controller directly via locator configuration rules
       create: (_) => locator<QrScannerCubit>(),
       child: BlocConsumer<QrScannerCubit, QrScannerState>(
         listener: (context, state) {
-          // Manage asynchronous side-effects safely inside the listener
           if (state.isSuccess) {
             Navigator.pushReplacement(
               context,
@@ -65,14 +63,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                       color: Colors.lightBlueAccent,
                     ),
                   )
-                : _isScanning
-                //* mobile scanner
-                ? QrScannerView(
-                    onScanComplete: (scannedValue) {
-                      setState(() => _isScanning = false);
-                      context.read<QrScannerCubit>().pairWithQr(scannedValue);
-                    },
-                  )
                 : SafeArea(
                     child: Center(
                       child: Padding(
@@ -83,24 +73,61 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                //* welcome card
-                                const QrWelcomeCard(),
-                                const SizedBox(height: 26),
-                                //* scan button
-                                CustomButton(
-                                  onPressed: () =>
-                                      setState(() => _isScanning = true),
-                                  label: 'Scan Qr Code',
-                                  icon: Icons.qr_code_scanner_rounded,
-                                ),
-                                const SizedBox(height: 14),
-                                //* manual code button
-                                CustomButton(
-                                  onPressed: () =>
-                                      showManualCodeDialog(context),
-                                  label: 'Type Code',
-                                  icon: Icons.keyboard_rounded,
-                                ),
+                                //* Conditional view: Show scanner box or welcome options
+                                if (_isScanning) ...[
+                                  Text(
+                                    'Scan QR Code',
+                                    style: context.theme.textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Container to limit the scanner size
+                                  Container(
+                                    height: 300,
+                                    width: 300,
+                                    clipBehavior: Clip.hardEdge,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.lightBlueAccent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: QrScannerView(
+                                      onScanComplete: (scannedValue) {
+                                        setState(() => _isScanning = false);
+                                        context
+                                            .read<QrScannerCubit>()
+                                            .pairWithQr(scannedValue);
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextButton.icon(
+                                    onPressed: () =>
+                                        setState(() => _isScanning = false),
+                                    icon: const Icon(Icons.close),
+                                    label: const Text('Cancel'),
+                                  ),
+                                ] else ...[
+                                  //* welcome card
+                                  const QrWelcomeCard(),
+                                  const SizedBox(height: 26),
+                                  //* scan button
+                                  CustomButton(
+                                    onPressed: () =>
+                                        setState(() => _isScanning = true),
+                                    label: 'Scan Qr Code',
+                                    icon: Icons.qr_code_scanner_rounded,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  //* manual code button
+                                  CustomButton(
+                                    onPressed: () =>
+                                        showManualCodeDialog(context),
+                                    label: 'Type Code',
+                                    icon: Icons.keyboard_rounded,
+                                  ),
+                                ],
                               ],
                             ),
                           ),

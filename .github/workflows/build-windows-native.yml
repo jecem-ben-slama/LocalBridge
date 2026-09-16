@@ -7,6 +7,32 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-flutter-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Flutter deps
+        working-directory: ./localbridge_mobile
+        run: flutter pub get
+
+      - name: Build Flutter APK
+        working-directory: ./localbridge_mobile
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: localbridge-android
+          path: localbridge_mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
   build-native-windows:
     runs-on: windows-latest
 
@@ -16,6 +42,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Angular deps
+        working-directory: ./localbridge-web
+        run: npm ci
+
+      - name: Build Angular app
+        working-directory: ./localbridge-web
+        run: npx ng build --configuration production
 
       - name: Setup GraalVM
         uses: graalvm/setup-graalvm@v1
@@ -125,9 +164,27 @@ jobs:
           path: localbridge-windows-bundle.zip
           if-no-files-found: error
 
+  publish-release:
+    needs: [build-flutter-apk, build-native-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: localbridge-windows-bundle
+          path: ./release-files
+
+      - name: Download Flutter APK
+        uses: actions/download-artifact@v4
+        with:
+          name: localbridge-android
+          path: ./release-files
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: localbridge-windows-bundle.zip
+          files: |
+            release-files/localbridge-windows-bundle.zip
+            release-files/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

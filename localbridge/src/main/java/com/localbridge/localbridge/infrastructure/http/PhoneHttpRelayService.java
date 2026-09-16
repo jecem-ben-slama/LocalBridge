@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class PhoneHttpRelayService {
-    private static final long PHONE_TIMEOUT_SECONDS = 30;
+    private static final long PHONE_TIMEOUT_SECONDS = 600;
     private static final int PIPE_BUFFER_SIZE = 64 * 1024;
 
     private final BlockingQueue<PhoneCommand> commands = new LinkedBlockingQueue<>();
@@ -29,31 +29,60 @@ public class PhoneHttpRelayService {
     private volatile long lastPhonePoll;
     private volatile String phoneServerUrl;
     private volatile String phoneServerToken;
+    // Session ID of the phone that currently owns phoneServerUrl (direct
+    // server mode). This is how a web-initiated disconnect reaches a phone
+    // that never polls pollCommand(): the phone isn't listening on any
+    // relay channel, but it IS already polling its own session heartbeat
+    // (see SessionController.heartbeat / ConnectionRemoteSourceImpl's
+    // onSessionExpired). Closing this session is what actually tells that
+    // phone to stop, so PhoneFileController must close it alongside
+    // calling disconnect() below.
+    private volatile String phoneSessionId;
+    // Authoritative "we told the phone to go away" flag. isPhoneConnected()
+    // must respect this independent of lastPhonePoll/phoneServerUrl,
+    // because a phone that hasn't yet noticed the disconnect keeps
+    // long-polling pollCommand() in the background, and pollCommand()
+    // unconditionally refreshes lastPhonePoll on every call. Without this
+    // flag, that in-flight poll loop resurrects "connected" within one
+    // 35s poll cycle of disconnect() running.
+    private volatile boolean disconnected = true;
 
     public void connect() {
+        disconnected = false;
         lastPhonePoll = System.currentTimeMillis();
     }
 
     public void disconnect() {
-        // Queue a disconnect command so the polling mobile app executes it
-
+        disconnected = true;
         lastPhonePoll = 0;
         phoneServerUrl = null;
         phoneServerToken = null;
+        phoneSessionId = null;
+
+        // Actually queue a disconnect command so the polling mobile app's
+        // in-flight long-poll wakes up immediately and can stop itself
+        // (tear down its local HTTP server, stop polling) instead of
+        // silently resuming as if nothing happened.
         commands.clear();
+        commands.add(new PhoneCommand(UUID.randomUUID().toString(), "disconnect", ""));
+
         pendingRequests.values().forEach(future -> future.completeExceptionally(
                 new IllegalStateException("Phone disconnected")));
         pendingRequests.clear();
         downloads.values().forEach(session -> session.fail(new IOException("Phone disconnected")));
         downloads.clear();
     }
+
     public boolean isPhoneConnected() {
+        if (disconnected) {
+            return false;
+        }
         boolean relayConnected = lastPhonePoll > 0
                 && System.currentTimeMillis() - lastPhonePoll < TimeUnit.SECONDS.toMillis(PHONE_TIMEOUT_SECONDS);
         return relayConnected || phoneServerUrl != null;
     }
 
-    public void registerPhoneServer(String url, String token) {
+    public void registerPhoneServer(String url, String token, String sessionId) {
         if (url == null || url.isBlank() ||
                 !(url.startsWith("http://") || url.startsWith("https://"))) {
             throw new IllegalArgumentException("Invalid phone server URL");
@@ -63,6 +92,8 @@ public class PhoneHttpRelayService {
         }
         phoneServerUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
         phoneServerToken = token;
+        phoneSessionId = sessionId;
+        disconnected = false;
         lastPhonePoll = System.currentTimeMillis();
         clearRelayWork("Direct phone server mode enabled");
     }
@@ -79,6 +110,7 @@ public class PhoneHttpRelayService {
     public void unregisterPhoneServer() {
         phoneServerUrl = null;
         phoneServerToken = null;
+        phoneSessionId = null;
     }
 
     public String getPhoneServerUrl() {
@@ -87,6 +119,10 @@ public class PhoneHttpRelayService {
 
     public String getPhoneServerToken() {
         return phoneServerToken;
+    }
+
+    public String getPhoneSessionId() {
+        return phoneSessionId;
     }
 
     public PhoneCommand pollCommand() throws InterruptedException {

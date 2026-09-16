@@ -24,6 +24,8 @@ class TransferRepositoryImpl implements TransferRepository {
           kind: state.kind ?? 'none', // Fallback value when kind is null
           progress: state.progress,
           fileName: state.fileName,
+          error: state
+              .error, // was previously dropped, so failures never reached the UI
         ),
       );
     }

@@ -16,7 +16,6 @@ import {
   combineLatest,
   defer,
   distinctUntilChanged,
-  exhaustMap,
   finalize,
   interval,
   map,
@@ -28,9 +27,11 @@ import {
   throwError,
   timeout,
   withLatestFrom,
+  exhaustMap,
 } from 'rxjs';
 import { ApiResponse } from 'src/app/model/apiresponse';
 import { FileNode } from 'src/app/model/filenode';
+import { ToastService } from './toast.service';
 
 export interface ConnectionStatus {
   backendLive: boolean;
@@ -46,23 +47,21 @@ export interface ConnectionStatus {
 })
 export class FileService {
   private static readonly MAX_CONSECUTIVE_HEARTBEAT_FAILURES = 3;
-  // Heartbeat gets a longer timeout than ordinary calls: a slow-but-alive
-  // phone (e.g. mid-way through serving a big /browse listing) should not
-  // be counted as a failure just because 5-10s of generic HTTP timeout
-  // elapsed while it was legitimately busy.
   private static readonly HEARTBEAT_TIMEOUT_MS = 20000;
-  // Bound on the /api/phone/status call that kicks off every poll cycle.
-  // pollOnce() must always settle within a known upper bound - otherwise,
-  // with exhaustMap on the outer poller, a single hung backend call would
-  // permanently wedge all future polling (nothing would ever unsubscribe
-  // it for us the way switchMap used to).
   private static readonly STATUS_TIMEOUT_MS = 10000;
-  // If any request to the phone server succeeded this recently, a failed
-  // heartbeat is almost certainly the phone being briefly busy, not gone -
-  // don't count it towards the failure threshold.
   private static readonly RECENT_SUCCESS_GRACE_MS = 15000;
+  // Sentinel stored in localbridge_token when this browser is running on
+  // the same machine as the backend - AuthenticationService's loopback
+  // check auto-trusts it (SecurityContext.trustedLocal()), so it never
+  // needed a real per-phone pairing token. It isn't tied to any specific
+  // phone connection, so disconnecting a phone must not clear it: doing
+  // so would force the user to re-pair the host session itself, not just
+  // the phone.
+  private static readonly AUTO_LOOPBACK_TOKEN = 'AUTO_HOST_LOOPBACK_SESSION';
 
   private http = inject(HttpClient);
+  private toastService = inject(ToastService);
+
   private apiUrl = '/api/files/list';
   private phoneServerUrl: string | null = null;
   private phoneServerToken: string | null = null;
@@ -80,14 +79,8 @@ export class FileService {
   });
   readonly transferState$ = this.transferSubject.asObservable();
 
-  // Tracks concurrent in-flight phone browse requests. A counter (not a
-  // boolean) so overlapping browse calls - e.g. double-clicking into a
-  // folder before the first response lands - don't clobber each other.
   private readonly browseCountSubject = new BehaviorSubject<number>(0);
 
-  // Single source of truth for "the phone is currently proving liveness to
-  // us directly via a browse or transfer". Composed from browse count +
-  // transfer state instead of duplicating the concept in two places.
   private readonly phoneBusy$ = combineLatest([
     this.browseCountSubject,
     this.transferState$,
@@ -96,9 +89,6 @@ export class FileService {
     distinctUntilChanged()
   );
 
-  // Single, centralized connection poller. Components subscribe to this
-  // instead of each running their own interval against the shared service
-  // state - that duplication was what caused the checking-flag race.
   private readonly manualCheck$ = new Subject<void>();
   private readonly statusSubject = new BehaviorSubject<ConnectionStatus>({
     backendLive: false,
@@ -111,7 +101,6 @@ export class FileService {
   readonly connectionStatus$ = this.statusSubject.asObservable();
 
   constructor() {
-    // UPDATED: Changed the interval from 10000 to 5000 ms to match the Flutter heartbeat timing!
     merge(interval(5000).pipe(startWith(0)), this.manualCheck$)
       .pipe(
         withLatestFrom(this.phoneBusy$),
@@ -120,7 +109,6 @@ export class FileService {
       .subscribe();
   }
 
-  /** Trigger an immediate connection check (e.g. from a manual refresh button). */
   checkNow(): void {
     this.manualCheck$.next();
   }
@@ -195,20 +183,15 @@ export class FileService {
     phoneServerUrl: string | null;
     phoneServerToken: string | null;
   }> {
-    // 1. Add a unique timestamp string to the end of the URL path to bypass the browser cache
     const cacheBuster = `?cb=${new Date().getTime()}`;
-
-    // 2. Fetch the token directly from local storage matching your authInterceptor key
     const token = localStorage.getItem('localbridge_token');
 
-    // 3. Prepare headers configuration with cache disabling commands
     const headersConfig: { [header: string]: string } = {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       Pragma: 'no-cache',
       Expires: '0',
     };
 
-    // 4. Critical Fix: Inject the token under X-Session-Id so the Java controller validates the session fallback!
     if (token) {
       headersConfig['X-Session-Id'] = token;
     }
@@ -222,32 +205,14 @@ export class FileService {
         headers: new HttpHeaders(headersConfig),
       })
       .pipe(
-        // Bounded so pollOnce() can never hang indefinitely - see the
-        // exhaustMap note on the constructor's poller above.
         timeout(FileService.STATUS_TIMEOUT_MS),
         tap((status) => {
-          // Output matching local time structure
-          console.log(
-            `[${new Date().toLocaleString()}] Phone server status refreshed:`,
-            status
-          );
-
           this.phoneServerUrl = status.phoneServerUrl;
           this.phoneServerToken = status.phoneServerToken;
         })
       );
   }
 
-  /**
-   * Pings the phone's /health endpoint - unless the phone is already busy
-   * serving us a browse or transfer request, in which case that IS proof
-   * of life and we skip the probe entirely.
-   *
-   * A failure is only counted towards the disconnect threshold if we
-   * haven't seen a successful phone response very recently - a slow /health
-   * response right after (or during) a big /browse listing is far more
-   * likely to be "busy" than "gone".
-   */
   heartbeatPhoneServer(phoneBusy: boolean): Observable<unknown> {
     if (!this.phoneServerUrl) return of(null);
 
@@ -286,18 +251,61 @@ export class FileService {
       );
   }
 
+  /**
+   * Clears the stored device pairing token - unless it's the
+   * AUTO_LOOPBACK_TOKEN sentinel, which represents host-loopback trust
+   * rather than a pairing with a specific phone and must survive phone
+   * disconnects.
+   */
+  private clearPairingToken(): void {
+    const existing = localStorage.getItem('localbridge_token');
+    if (existing !== FileService.AUTO_LOOPBACK_TOKEN) {
+      localStorage.removeItem('localbridge_token');
+    }
+  }
+
   disconnectPhone(): Observable<unknown> {
-    const params = this.phoneParams();
-    return this.http.post('/api/phone/disconnect', {}, { params }).pipe(
+    return this.http.post('/api/phone/disconnect', {}).pipe(
       tap(() => {
+        // Force clear all local references immediately
         this.phoneServerUrl = null;
         this.phoneServerToken = null;
-        localStorage.removeItem('localbridge_token');
+        this.heartbeatFailureCount = 0;
+        this.lastPhoneServerSuccessAt = 0;
+
+        this.clearPairingToken();
+        localStorage.removeItem('localbridge_session_id');
+
+        // Force status update to disconnected right away
         this.patchStatus({
+          backendLive: true,
           phoneConnected: false,
           phoneServerLive: false,
           phoneServerUrl: null,
+          checking: false,
+          lastChecked: new Date(),
         });
+
+        this.toastService.info('Phone disconnected.');
+      }),
+      catchError((error) => {
+        // Even if the network call fails, force local cleanup so the UI isn't stuck
+        this.phoneServerUrl = null;
+        this.phoneServerToken = null;
+        this.clearPairingToken();
+        localStorage.removeItem('localbridge_session_id');
+        this.patchStatus({
+          backendLive: false,
+          phoneConnected: false,
+          phoneServerLive: false,
+          phoneServerUrl: null,
+          checking: false,
+          lastChecked: new Date(),
+        });
+        this.toastService.error(
+          'Disconnect failed, but local session was cleared.'
+        );
+        return throwError(() => error);
       })
     );
   }
@@ -457,14 +465,39 @@ export class FileService {
   }
 
   startUpload(path: string, file: File, destination: 'pc' | 'phone'): boolean {
-    if (this.transferBusy) return false;
+    if (this.transferBusy) {
+      this.toastService.warning('Another transfer is currently in progress.');
+      return false;
+    }
+
+    if (destination === 'phone') {
+      const currentStatus = this.statusSubject.value;
+      if (!currentStatus.phoneConnected || !currentStatus.phoneServerLive) {
+        const errorMsg =
+          'Cannot send to phone: The phone server is unreachable. Please open the app on your phone.';
+        this.toastService.error(errorMsg);
+        this.failTransfer(errorMsg);
+        return false;
+      }
+    }
+
     this.beginTransfer('upload', file.name);
 
     const request =
       destination === 'pc'
         ? this.uploadFile(path, file)
         : this.refreshPhoneServer().pipe(
-            switchMap(() => this.uploadToPhone(file, path))
+            switchMap((status) => {
+              if (!status.phoneServerUrl) {
+                return throwError(
+                  () =>
+                    new Error(
+                      'Phone disconnected right before transfer. Please wake up the phone.'
+                    )
+                );
+              }
+              return this.uploadToPhone(file, path);
+            })
           );
 
     this.transferSubscription = request.subscribe({
@@ -474,28 +507,42 @@ export class FileService {
         }
         if (event.type === HttpEventType.Response) {
           this.lastPhoneServerSuccessAt = Date.now();
+          this.toastService.success(`Successfully uploaded ${file.name}`);
           this.finishTransfer();
         }
       },
-      error: (error) =>
-        this.failTransfer(error?.error?.message || 'Upload failed.'),
+      error: (error) => {
+        const errorMessage =
+          error?.message || error?.error?.message || 'Upload failed.';
+        this.toastService.error(`Upload failed: ${errorMessage}`);
+        this.failTransfer(errorMessage);
+      },
     });
+
     return true;
   }
 
   startDownload(path: string, source: 'pc' | 'phone'): boolean {
-    if (this.transferBusy) return false;
+    if (this.transferBusy) {
+      this.toastService.warning('Another transfer is currently in progress.');
+      return false;
+    }
+
     const fileName = decodeURIComponent(path.split('/').pop() || 'download');
     this.beginTransfer('download', fileName);
 
     this.saveDownload(path, source, (progress) => this.updateTransfer(progress))
       .then(() => {
         this.lastPhoneServerSuccessAt = Date.now();
+        this.toastService.success(`Successfully downloaded ${fileName}`);
         this.finishTransfer();
       })
-      .catch((error) =>
-        this.failTransfer(error?.message || 'Download failed.')
-      );
+      .catch((error) => {
+        const errorMsg = error?.message || 'Download failed.';
+        this.toastService.error(errorMsg);
+        this.failTransfer(errorMsg);
+      });
+
     return true;
   }
 
@@ -511,6 +558,7 @@ export class FileService {
       error: 'Transfer cancelled',
       cancelled: true,
     });
+    this.toastService.info('Transfer cancelled');
   }
 
   private beginTransfer(kind: TransferKind, fileName: string) {

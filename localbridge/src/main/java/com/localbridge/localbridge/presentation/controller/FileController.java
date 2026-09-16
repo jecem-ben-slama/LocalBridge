@@ -174,17 +174,30 @@ public class FileController {
     }
 
     private Path resolveExistingPath(String path) throws IOException {
-        Path target = rootDir.resolve(path).normalize();
-        if (!target.startsWith(rootDir) || !Files.exists(target, LinkOption.NOFOLLOW_LINKS))
-            return null;
-        Path realTarget = target.toRealPath();
-        if (!realTarget.startsWith(rootDir.toRealPath()))
-            return null;
-        Path relative = rootDir.toRealPath().relativize(realTarget);
-        for (Path part : relative) {
-            if (isHiddenOrFilesEntry(part.toString()))
-                return null;
+        Path target = Paths.get(path);
+
+        // If the path is relative, resolve it against the rootDir as a fallback
+        if (!target.isAbsolute()) {
+            target = rootDir.resolve(path);
         }
+
+        target = target.normalize();
+
+        if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            return null;
+        }
+
+        Path realTarget = target.toRealPath();
+
+        // Check for hidden folders in the path to maintain your security rules
+        for (Path part : realTarget) {
+            // We check getFileName() to avoid issues with root directory components (like
+            // C:\)
+            if (part.getFileName() != null && isHiddenOrFilesEntry(part.getFileName().toString())) {
+                return null;
+            }
+        }
+
         return realTarget;
     }
 

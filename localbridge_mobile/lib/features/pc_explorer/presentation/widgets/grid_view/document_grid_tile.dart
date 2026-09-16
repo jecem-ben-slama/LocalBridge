@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:localbridge_mobile/core/extensions/theme_extensions.dart';
 
-import '../../domain/entities/document.dart';
-import 'document_download_button.dart';
-import 'document_thumbnail.dart';
+import '../../../domain/entities/document.dart';
+import '../document_download_button.dart';
+import '../document_thumbnail.dart';
 
 /// One cell of PC Explorer's grid view.
 ///
 /// Extracted from `PcExplorerTab._buildGridView`'s itemBuilder, which
 /// duplicated most of this layout (and the thumbnail-vs-icon decision)
-/// with `_buildListView`'s itemBuilder.
+/// with `_buildListView`'s itemBuilder. [onLongPress] (used for the
+/// folder quick-pin gesture) is wired straight into the tile's own
+/// `InkWell` rather than the page wrapping each tile in a separate
+/// `GestureDetector`.
 class DocumentGridTile extends StatelessWidget {
   final Document file;
   final String? thumbnailUrl;
   final Map<String, String> headers;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final VoidCallback? onDownload;
 
   const DocumentGridTile({
@@ -23,6 +27,7 @@ class DocumentGridTile extends StatelessWidget {
     required this.thumbnailUrl,
     required this.headers,
     required this.onTap,
+    this.onLongPress,
     required this.onDownload,
   });
 
@@ -38,6 +43,7 @@ class DocumentGridTile extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
+            onLongPress: onLongPress,
             splashColor: colors.primary.withValues(alpha: 0.08),
             child: Container(
               decoration: BoxDecoration(
